@@ -1,20 +1,3 @@
-Phase 1
-1. select the framework
-    pyqt/pyside
-2. set up the development environment
-    install dependencies
-    set up a git repo
-
-Phase 2: ui design and layout
-1. create the main window
-    set up two line display
-    set up grid layout for buttons
-2. design buttons
-    Basic operations: +, -, ×, ÷, =
-    Scientific functions: sin, cos, tan, log, ^, √
-    Memory functions: M+, M-, MR, MC
-    Other features: fraction, percent, ANS, (-), ON/CLEAR
-
 Phase 3: core functionality:
 1. input handling
     button presses
@@ -36,7 +19,9 @@ Phase 4: Advanced features and polishing:
         consider button skins and fonts
 3. memory
     perfect history recall
-4. nice-to-have's
+4. menus
+    there are so many menus and i have no idea what any of them do
+5. nice-to-have's
     initially, the up arrow key will correspond to looking for the last performed calculation. have something where the users can customize the keymap
     see about performance improvements in terms of efficiency
 
