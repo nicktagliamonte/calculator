@@ -1,0 +1,46 @@
+Phase 1
+1. select the framework
+    pyqt/pyside
+2. set up the development environment
+    install dependencies
+    set up a git repo
+
+Phase 2: ui design and layout
+1. create the main window
+    set up two line display
+    set up grid layout for buttons
+2. design buttons
+    Basic operations: +, -, ×, ÷, =
+    Scientific functions: sin, cos, tan, log, ^, √
+    Memory functions: M+, M-, MR, MC
+    Other features: fraction, percent, ANS, (-), ON/CLEAR
+
+Phase 3: core functionality:
+1. input handling
+    button presses
+    keyboard input
+2. mathematical computations
+    carefully implement PEMDAS
+    integrate pythons math module for calculations
+    handle fractions, percentages, and memory operations
+3. display updates
+    implement real time updates for input and results (maybe)
+    support the two line display (current input and previous calculation)
+
+Phase 4: Advanced features and polishing:
+1. error handling and edge cases
+    divide by 0
+    invalid input (eg log(-1))
+2. theming and styling
+    make the ui look right
+        consider button skins and fonts
+3. memory
+    perfect history recall
+4. nice-to-have's
+    initially, the up arrow key will correspond to looking for the last performed calculation. have something where the users can customize the keymap
+    see about performance improvements in terms of efficiency
+
+Phase 5: testing and deployment
+1. unit tests for calculations
+2. user testing for ui usability
+3. create an executable
