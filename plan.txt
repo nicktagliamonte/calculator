@@ -1,7 +1,11 @@
 Phase 3: core functionality:
 1. input handling
-    button presses
     keyboard input
+        add a state variable to track when in 'ins' mode
+        update all the MANY add functions to acknowledge this ins state
+        update del to work given the positioning
+        update backspace to operate as a keypress version of del
+        finalize spacebar as hotkey to toggle secondary
 2. mathematical computations
     carefully implement PEMDAS
     integrate pythons math module for calculations
@@ -14,6 +18,8 @@ Phase 4: Advanced features and polishing:
 1. error handling and edge cases
     divide by 0
     invalid input (eg log(-1))
+    entered text extends beyond the bounds of the app viewport
+    get the full list of possible errors to determine a plan
 2. theming and styling
     make the ui look right
         consider button skins and fonts
@@ -24,8 +30,17 @@ Phase 4: Advanced features and polishing:
 5. nice-to-have's
     initially, the up arrow key will correspond to looking for the last performed calculation. have something where the users can customize the keymap
     see about performance improvements in terms of efficiency
+    add an absolute value function Abs and have its syntax be abs()
 
 Phase 5: testing and deployment
 1. unit tests for calculations
 2. user testing for ui usability
 3. create an executable
+
+
+NOTES: 
+some keyboard-potential functions were not included oob for the sake of clarity or avoiding ambiguity: 
+inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
+all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
+e and EE (to keep hotkeys case-independent)
+currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
