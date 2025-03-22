@@ -1,18 +1,19 @@
 Phase 3: core functionality:
-1. input handling
-    keyboard input
-        add a state variable to track when in 'ins' mode
-        update all the MANY add functions to acknowledge this ins state
-        update del to work given the positioning
-        update backspace to operate as a keypress version of del
-        finalize spacebar as hotkey to toggle secondary
-2. mathematical computations
-    carefully implement PEMDAS
-    integrate pythons math module for calculations
-    handle fractions, percentages, and memory operations
-3. display updates
-    implement real time updates for input and results (maybe)
-    support the two line display (current input and previous calculation)
+3. menus
+    status effects:
+        hyp (effect tbd)
+        reset
+    
+    function menus:
+        prb 
+
+    tbd:
+        O ' "
+        r<>p
+        k - puts whatever k is set to at the end of ALL user input
+        EE
+        ,
+        %
 
 Phase 4: Advanced features and polishing:
 1. error handling and edge cases
@@ -24,23 +25,34 @@ Phase 4: Advanced features and polishing:
     make the ui look right
         consider button skins and fonts
 3. memory
-    perfect history recall
-4. menus
-    there are so many menus and i have no idea what any of them do
-5. nice-to-have's
-    initially, the up arrow key will correspond to looking for the last performed calculation. have something where the users can customize the keymap
-    see about performance improvements in terms of efficiency
+    solve history recall for lines of input
+    make sure reset also erases memory
+    can i have cross-session memory?
+4. misc other vital features
+    add some kind of manual and a menu to access it -- maybe a devoted 'menu' button
     add an absolute value function Abs and have its syntax be abs()
+5. nice-to-have's
+    have something where the users can customize the keymap    
+    have all the multi-char functions be treated as a single item, such that if the cursor is on the s in "sin(", hitting right arrow will take you to the position after the apostrophe
+    make it so that if there is a return value expression other than 0, hitting another button will replace all content in the input window
+        in fact the above means making the default output value blank and not '0'    
+    inserting a single character takes you out of insert mode. in fact any button press while in insert mode toggles insert mode to off
+    entering insert mode does not reset the cursor position
+    changing the cursor position off of the end index and hitting a button replaces the character at that position
+    make it so that backspace will delete the current char iff there is only one char in the input line
+    modular arithmetic
+    get rid of tests section
 
-Phase 5: testing and deployment
-1. unit tests for calculations
-2. user testing for ui usability
-3. create an executable
+Phase 5: deployment
+1. create an executable
 
 
 NOTES: 
 some keyboard-potential functions were not included oob for the sake of clarity or avoiding ambiguity: 
-inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
-all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
-e and EE (to keep hotkeys case-independent)
-currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
+    inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
+    all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
+    e and EE (to keep hotkeys case-independent)
+    currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
+    clear maps to CLEAR because using c would impede cos, cl would impede memclr, and clr would impede memclr. so we need the full word
+certain improvements to the original calculator - added an abs function, defaulted to radians instead of degrees
+some things left out -- i got rid of memvar because rcl adequately addresses its use case and it was bloating the code without improving functionality
