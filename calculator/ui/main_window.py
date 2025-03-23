@@ -1,4 +1,5 @@
 # calculator/ui/main_window.py
+import re
 from PySide6.QtCore import QTimer # type: ignore
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QGridLayout, QWidget, QLabel, QPushButton # type: ignore
 from PySide6.QtCore import Qt, QObject # type: ignore
@@ -23,6 +24,9 @@ class MainWindow(QMainWindow):
         self.decimal_places = None  # Default is None (F), meaning flexible decimal places
         self._original_sender = self.sender
         self.ans = "0"  # Initialize ans variable
+        self.is_in_hyp = False  # Track if we're in hyp mode
+        self.k_value = ""  # Store the K value entered by user
+        self.k_mode_active = False  # Track if K mode is active
         
         # Memory storage variables
         self.memory_values = {'a': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0}  # Storage for a, b, c, d, e values
@@ -308,6 +312,21 @@ class MainWindow(QMainWindow):
             valid_positions = [0, 6, 12]  # Positions of '1', '2', 'c'
             if self.cursor_position not in valid_positions:
                 self.cursor_position = valid_positions[0]
+        elif self.menu_type == "reset_confirm":
+            # Ensure cursor is only at valid positions: 'y', 'n'
+            valid_positions = [16, 18]  # Positions of 'y', 'n'
+            if self.cursor_position not in valid_positions:
+                self.cursor_position = valid_positions[0]
+        elif self.menu_type == "symbol":
+            # Ensure cursor is only at valid positions for symbols
+            valid_positions = [0, 2, 4, 6, 8, 10]  # Positions of °, ', ", r, g, ►
+            if self.cursor_position not in valid_positions:
+                self.cursor_position = valid_positions[0]
+        elif self.menu_type == "r<>p":
+            # Ensure cursor is only at valid positions
+            valid_positions = [0, 5, 10, 15]  # Start of each option
+            if self.cursor_position not in valid_positions:
+                self.cursor_position = valid_positions[0]
         else:
             # Normal cursor position bounds checking
             if self.cursor_position >= len(current_text):
@@ -468,7 +487,16 @@ class MainWindow(QMainWindow):
                         self.cursor_position = len(next_prompt) - 1
                         self.update_display_with_cursor()
                 return
-        # Handle menu-specific navigation first
+        # Handle menu-specific navigation
+        if self.is_in_menu and self.menu_type == "reset_confirm":
+            if event.key() == Qt.Key_Left or event.key() == Qt.Key_Right:
+                # Toggle between 'y' and 'n'
+                if self.cursor_position == 16:  # At 'y'
+                    self.cursor_position = 18  # Move to 'n'
+                else:
+                    self.cursor_position = 16  # Move to 'y'
+                self.update_display_with_cursor()
+                return
         if self.is_in_menu and self.menu_type == "drg":
             if event.key() == Qt.Key_Left:
                 # Navigate between deg, rad, grd options (left)
@@ -567,6 +595,99 @@ class MainWindow(QMainWindow):
                 elif self.cursor_position == 12:  # At 'c' in 'clrdata'
                     self.cursor_position = 0   # Move to '1' in '1-var'
                 self.update_display_with_cursor()
+                return
+            
+        if self.is_in_menu and self.menu_type == "prb":
+            if event.key() == Qt.Key_Left:
+                if self.cursor_position == 0:
+                    self.cursor_position = 15
+                elif self.cursor_position == 4:
+                    self.cursor_position = 0
+                elif self.cursor_position == 8:
+                    self.cursor_position = 4
+                elif self.cursor_position == 10:
+                    self.cursor_position = 8
+                elif self.cursor_position == 15:
+                    self.cursor_position = 10
+                self.update_display_with_cursor()
+                return
+            
+            if event.key() == Qt.Key_Right:
+                if self.cursor_position == 0:
+                    self.cursor_position = 4
+                elif self.cursor_position == 4:
+                    self.cursor_position = 8
+                elif self.cursor_position == 8:
+                    self.cursor_position = 10
+                elif self.cursor_position == 10:
+                    self.cursor_position = 15
+                elif self.cursor_position == 15:
+                    self.cursor_position = 0
+                self.update_display_with_cursor()
+                return
+        if self.is_in_menu and self.menu_type == "symbol":
+            if event.key() == Qt.Key_Left:
+                # Navigate between symbols (left)
+                valid_positions = [0, 2, 4, 6, 8, 10]
+                current_index = valid_positions.index(self.cursor_position) if self.cursor_position in valid_positions else 0
+                self.cursor_position = valid_positions[(current_index - 1) % len(valid_positions)]
+                self.update_display_with_cursor()
+                return
+                    
+            if event.key() == Qt.Key_Right:
+                # Navigate between symbols (right)
+                valid_positions = [0, 2, 4, 6, 8, 10]
+                current_index = valid_positions.index(self.cursor_position) if self.cursor_position in valid_positions else 0
+                self.cursor_position = valid_positions[(current_index + 1) % len(valid_positions)]
+                self.update_display_with_cursor()
+                return
+        if self.is_in_menu and self.menu_type == "r<>p":
+            if event.key() == Qt.Key_Left:
+                # Navigate between options (left)
+                valid_positions = [0, 5, 10, 15]
+                current_index = valid_positions.index(self.cursor_position) if self.cursor_position in valid_positions else 0
+                self.cursor_position = valid_positions[(current_index - 1) % len(valid_positions)]
+                self.update_display_with_cursor()
+                return
+                    
+            if event.key() == Qt.Key_Right:
+                # Navigate between options (right)
+                valid_positions = [0, 5, 10, 15]
+                current_index = valid_positions.index(self.cursor_position) if self.cursor_position in valid_positions else 0
+                self.cursor_position = valid_positions[(current_index + 1) % len(valid_positions)]
+                self.update_display_with_cursor()
+                return
+        if self.is_in_menu and self.menu_type == "k":
+            if event.text().isprintable():
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                    
+                # Add the new character
+                value_part += event.text()
+                
+                # Update the K value in real-time
+                self.update_k_field(value_part)
+                return
+            
+            elif event.key() == Qt.Key_Backspace:
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                    
+                # Remove last character
+                value_part = value_part[:-1] if value_part else ""
+                
+                # Update the K value in real-time
+                self.update_k_field(value_part)
                 return
         # OTHER MENUS TO BE ADDED HERE
         
@@ -733,6 +854,24 @@ class MainWindow(QMainWindow):
         self.current_input = self.display_input.text().replace("<u>", "").replace("</u>", "")
         
     def clear_input(self):
+        if self.is_in_menu and self.menu_type == "k":
+            # Get current K menu content
+            current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+            
+            if current_text == "K=" or len(current_text) <= 2:
+                # No text after K=, exit the menu
+                self.is_in_menu = False
+                self.menu_type = None
+                self.display_input.setText("0")
+                self.current_input = "0"
+            else:
+                # Clear text after K=
+                self.display_input.setText("K=")
+                self.cursor_position = 2  # Position after K=
+            
+            self.update_display_with_cursor()
+            return
+    
         if self.is_in_menu:
             self.is_in_menu = False
             self.menu_type = None
@@ -880,12 +1019,19 @@ class MainWindow(QMainWindow):
             return
             
         if self.secondary_state:
-            new_text = "RESET"
+            # Show confirmation prompt instead of immediate reset
+            self.pre_menu_input = self.current_input
+            new_text = "reset all data? y n"
+            self.is_in_menu = True
+            self.menu_type = "reset_confirm"
+            
+            self.display_input.setText(new_text)
+            self.cursor_position = 15  # Position cursor at 'y'
+            self.update_display_with_cursor()
         else:
             new_text = "0"
-        
-        replace_zero = (new_text != "0")
-        self.update_input_state(new_text, replace_zero=replace_zero)
+            replace_zero = (new_text != "0")
+            self.update_input_state(new_text, replace_zero=replace_zero)
         
         if self.secondary_state:
             self.toggle_secondary_state()
@@ -964,27 +1110,34 @@ class MainWindow(QMainWindow):
     def add_divide(self):
         if self.is_in_menu:
             return
-            
+                
         if self.secondary_state:
-            new_text = "K="
+            if self.k_mode_active:
+                # If already in K mode, exit K mode
+                self.k_mode_active = False
+                self.k_value = ""
+                self.update_status_bar()
+            else:
+                new_text = "K="
+                self.is_in_menu = True
+                self.menu_type = "k"
+                self.display_input.setText(new_text)
+                self.cursor_position = 2  # Position cursor after "K="
+                self.update_display_with_cursor()
         else:
+            # Regular divide functionality (unchanged)
             new_text = "÷"
-        
-        current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
-        if new_text == "K=":
-            self.display_input.setText(new_text)
-            self.current_input = new_text
-            self.cursor_position = len(new_text) - 1
-            self.update_display_with_cursor()
-        elif current_text == "0" and new_text == "÷":
-            new_text = "Ans÷"
-            self.display_input.setText(new_text)
-            self.current_input = new_text
-            self.cursor_position = len(new_text) - 1
-            self.update_display_with_cursor()
-        else:
-            self.update_input_state(new_text)
             
+            current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+            if current_text == "0" and new_text == "÷":
+                new_text = "Ans÷"
+                self.display_input.setText(new_text)
+                self.current_input = new_text
+                self.cursor_position = len(new_text) - 1
+                self.update_display_with_cursor()
+            else:
+                self.update_input_state(new_text)
+                
         if self.secondary_state:
             self.toggle_secondary_state()
             
@@ -1060,7 +1213,17 @@ class MainWindow(QMainWindow):
         if self.secondary_state:
             new_text = "►f↔d"  
         else:
-            new_text = "PRB"
+            # Save current input before entering menu
+            self.pre_menu_input = self.current_input
+            
+            new_text = "nPr nCr ! rand randi"
+            self.is_in_menu = True
+            self.menu_type = "prb"
+            
+            self.display_input.setText(new_text)
+            self.cursor_position = 0  # Position at 'n' in nPr
+            self.update_display_with_cursor()
+            return
         
         if current_text == "0" and new_text == "►f↔d":
             # Special case for f<>d with empty display - use Ans
@@ -1114,13 +1277,28 @@ class MainWindow(QMainWindow):
         
     def add_symbol_menu(self):
         if self.secondary_state:
-            new_text = "r<>p"
+            # Save the current input before entering menu mode
+            self.pre_menu_input = self.current_input
+            
+            # r<>p menu with coordinate conversion options
+            new_text = "R►Pr R►Pθ P►Rx P►Ry"
+            self.is_in_menu = True
+            self.menu_type = "r<>p"
+            
+            self.display_input.setText(new_text)
+            self.cursor_position = 0  # Start at first option
+            self.update_display_with_cursor()
         else:
-            new_text = "° ' \""
-        
-        self.display_input.setText(new_text)
-        self.cursor_position = len(new_text) - 1
-        self.update_display_with_cursor()
+            # Save the current input before entering menu mode
+            self.pre_menu_input = self.current_input
+            
+            new_text = "° ' \" r g ►DMS"
+            self.is_in_menu = True
+            self.menu_type = "symbol"
+            
+            self.display_input.setText(new_text)
+            self.cursor_position = 0  # Start cursor at the first symbol (°)
+            self.update_display_with_cursor()
         
     def add_clrvar(self):
         if self.secondary_state:
@@ -1239,12 +1417,10 @@ class MainWindow(QMainWindow):
             return
             
         if self.secondary_state:
-            new_text = "HYP"
-            # HYP completely replaces the display
-            self.display_input.setText(new_text)
-            self.current_input = new_text
-            self.cursor_position = len(new_text) - 1
-            self.update_display_with_cursor()
+            self.is_in_hyp = not self.is_in_hyp
+            self.update_status_bar()
+            self.toggle_secondary_state()
+            return
         else:
             new_text = "π"
             # Use the helper for normal π insertion
@@ -1428,7 +1604,6 @@ class MainWindow(QMainWindow):
                     # Clear data but stay in stat mode
                     if self.stat_manager.in_stat_mode:
                         was_cleared = self.stat_manager.clear_all_data()
-                        # Maybe show a brief confirmation
                         if was_cleared:
                             self.display_result.setText("Data cleared")
                             # Set a timer to clear this message after 1.5 seconds
@@ -1441,6 +1616,155 @@ class MainWindow(QMainWindow):
                 self.current_input = self.pre_menu_input
                 self.cursor_position = len(self.current_input) - 1
                 self.update_display_with_cursor()
+                return
+            elif self.menu_type == "reset_confirm":
+                # Check if user selected 'y' (yes)
+                if self.cursor_position == 16:  # 'y' position
+                    # Reset everything
+                    self.key_buffer = ""
+                    self.cursor_position = 0
+                    self.insert_mode = False
+                    self._toggling_secondary = False
+                    self.is_in_menu = False
+                    self.menu_type = None
+                    self.angle_mode = "rad"
+                    self.output_format = "flo"
+                    self.decimal_places = None
+                    self.ans = "0"
+                    self.is_in_hyp = False
+                    self.memory_values = {'a': 0, 'b': 0, 'c': 0, 'd': 0, 'e': 0}
+                    self.rand_value = 0
+                    self.current_input = "0"
+                    self.k_mode_active = False
+                    self.k_value = ""
+                    
+                    # Clear stat data
+                    self.stat_manager.clear_all_data()
+                    self.stat_manager.in_stat_mode = False
+                    self.stat_manager.stat_mode = None
+                    self.stat_manager.in_data_entry = False
+                    self.stat_manager.data_1var = []
+                    self.stat_manager.data_2var = []
+                    self.stat_manager.current_x_index = 1
+                    self.stat_manager.current_freq = 1
+                    self.stat_manager.viewing_freq = False
+                    self.stat_manager.viewing_y = False
+                    
+                    # Update display to confirm reset
+                    self.display_result.setText("RESET COMPLETE")
+                    self.display_input.setText("")
+                    self.update_display_with_cursor()
+                    QTimer.singleShot(1500, lambda: self.display_result.setText(""))
+                else:
+                    self.is_in_menu = False
+                    self.menu_type = None
+                    self.display_input.setText(self.pre_menu_input)
+                    self.current_input = self.pre_menu_input
+                
+                self.cursor_position = 0
+                self.update_display_with_cursor()
+                return
+            elif self.menu_type == "prb":
+                if self.cursor_position == 0:  # nPr
+                    input_text = self.current_input if self.current_input != "0" else "ans"
+                    new_text = f"{input_text} nPr "
+                elif self.cursor_position == 4:  # nCr
+                    input_text = self.current_input if self.current_input != "0" else "ans"
+                    new_text = f"{input_text} nCr "
+                elif self.cursor_position == 8:  # !
+                    input_text = self.current_input if self.current_input != "0" else "ans"
+                    new_text = f"{input_text}!"
+                elif self.cursor_position == 10:  # rand
+                    new_text = "rand"
+                elif self.cursor_position == 15:  # randi
+                    new_text = "randi("
+                
+                # Update display
+                self.is_in_menu = False
+                self.menu_type = None
+                self.display_input.setText(new_text)
+                self.current_input = new_text
+                self.cursor_position = len(new_text) - 1
+                self.update_display_with_cursor()
+                return
+            elif self.menu_type == "symbol":
+                # Get the selected symbol based on cursor position
+                if self.cursor_position == 0:  # °
+                    symbol = "°"
+                elif self.cursor_position == 2:  # '
+                    symbol = "'"
+                elif self.cursor_position == 4:  # "
+                    symbol = "\""
+                elif self.cursor_position == 6:  # r
+                    symbol = "r"
+                elif self.cursor_position == 8:  # g
+                    symbol = "g"
+                elif self.cursor_position == 10:  # ►DMS
+                    symbol = "►DMS"
+                
+                # Check if current input is 0
+                if self.current_input == "0":
+                    new_text = f"Ans{symbol}"  # No space between Ans and symbol
+                else:
+                    new_text = f"{self.current_input}{symbol}"  # Append symbol to existing input
+                
+                # Exit menu mode
+                self.is_in_menu = False
+                self.menu_type = None
+                
+                # Update display with new input
+                self.display_input.setText(new_text)
+                self.current_input = new_text
+                self.cursor_position = len(new_text) - 1
+                self.update_display_with_cursor()
+                return
+            elif self.menu_type == "r<>p":
+                # Get selected operation based on cursor position
+                if self.cursor_position == 0:  # R►Pr
+                    func = "R►Pr("
+                elif self.cursor_position == 5:  # R►Pθ
+                    func = "R►Pθ("
+                elif self.cursor_position == 10:  # P►Rx
+                    func = "P►Rx("
+                elif self.cursor_position == 15:  # P►Ry
+                    func = "P►Ry("
+                
+                # Apply to current input or Ans
+                if self.current_input == "0":
+                    new_text = f"{func}"
+                else:
+                    new_text = f"{self.pre_menu_input}{func}"
+                
+                # Exit menu mode
+                self.is_in_menu = False
+                self.menu_type = None
+                
+                # Update display
+                self.display_input.setText(new_text)
+                self.current_input = new_text
+                self.cursor_position = len(new_text) - 1
+                self.update_display_with_cursor()
+                return
+            elif self.menu_type == "k":
+                # Get user entered K value (strip the "K=" prefix)
+                k_input = self.display_input.text().replace("<u>", "").replace("</u>", "")
+                k_input = k_input[2:]  # Remove "K=" prefix
+                
+                # Store the K value
+                self.k_value = k_input
+                
+                # Activate K mode
+                self.k_mode_active = True
+                
+                # Exit menu mode
+                self.is_in_menu = False
+                self.menu_type = None
+                
+                # Show confirmation and update status bar
+                self.display_input.setText(f"K MODE: {k_input}")
+                QTimer.singleShot(1500, lambda: self.display_input.setText("0"))
+                self.current_input = "0"
+                self.update_status_bar()
                 return
             # Handle other menu types here
             
@@ -1472,11 +1796,21 @@ class MainWindow(QMainWindow):
         # Get the current input without HTML tags
         current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
         
+        # Get the current input without HTML tags
+        current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+
+        # Append K value if K mode is active
+        if self.k_mode_active and self.k_value:
+            current_text = current_text + self.k_value
+
+        # Now evaluate with the modified input
         result_obj = evaluate_expression(current_text, 
                             angle_mode=self.angle_mode, 
                             output_format=self.output_format,
                             decimal_places=self.decimal_places,
-                            ans=self.ans)  # Pass ans to evaluator
+                            ans=self.ans,
+                            hyp=self.is_in_hyp,
+                            rand_seed=self.rand_value)
 
         # Check if we need to store the result in memory
         if result_obj['store_to'] is not None:
@@ -1510,6 +1844,14 @@ class MainWindow(QMainWindow):
         # Add STAT indicator if in stat mode
         if self.stat_manager.in_stat_mode:
             status_text += f" | STAT {self.stat_manager.stat_mode}"
+        
+        # Add hyp indicator if active
+        if self.is_in_hyp:
+            status_text += " | HYP"
+            
+        # Add K mode indicator if active
+        if self.k_mode_active:
+            status_text += f" | K={self.k_value}"
         
         self.status_bar.setText(status_text)
         
@@ -1569,7 +1911,6 @@ class MainWindow(QMainWindow):
         
         return "Error: Unknown function"
     
-    # Add this function to MainWindow class
     def is_protected_prefix_position(self, current_text, cursor_pos):
         if not self.stat_manager.in_data_entry:
             return False
@@ -1594,3 +1935,10 @@ class MainWindow(QMainWindow):
                 return True
                 
         return False
+    
+    def update_k_field(self, text_value):
+        # Update the display
+        self.display_input.setText("K=" + text_value)
+        self.current_input = "K=" + text_value
+        self.cursor_position = len(self.current_input) - 1
+        self.update_display_with_cursor()

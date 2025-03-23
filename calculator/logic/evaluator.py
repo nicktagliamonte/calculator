@@ -1,7 +1,11 @@
 import math
 import re
+from .prob import factorial, permutation, combination, rand, randi
+from .coordinate import rectangular_to_polar_r, rectangular_to_polar_theta, polar_to_rectangular_x, polar_to_rectangular_y
 
-def evaluate_expression(expression: str, angle_mode: str = "rad", output_format: str = "flo", decimal_places: int = None, ans: str = "0") -> tuple:
+def evaluate_expression(expression: str, angle_mode: str = "rad", output_format: str = "flo", 
+                       decimal_places: int = None, ans: str = "0", hyp: bool = False,
+                       rand_seed=None) -> dict:
     try:
         # Check for memory storage operations (►a, ►b, etc.)
         store_match = re.search(r'►([a-e]|r)$', expression)
@@ -29,6 +33,12 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
         # Replace "ans" with the value of ans
         expression = expression.replace("Ans", ans)
         
+        # Check for ►DMS conversion
+        convert_to_dms = "►DMS" in expression
+        if convert_to_dms:
+            # Remove the ►DMS part for evaluation
+            expression = expression.replace("►DMS", "")
+        
         # Process mixed fractions in input before evaluation
         if has_mixed_fraction:
             processed_expr = parse_mixed_fractions(expression)
@@ -39,15 +49,37 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
         processed_expr = processed_expr.replace("►f↔d", "").replace("►A B/C↔D/E", "")
         
         # Process the expression as before
-        processed_expr = process_expression(processed_expr)
+        processed_expr = process_expression(processed_expr, angle_mode)
         processed_expr = processed_expr.replace("math.math.", "math.")
         processed_expr = balance_parentheses(processed_expr)
         
-        if angle_mode != "rad":
-            processed_expr = apply_angle_mode_conversion(processed_expr, angle_mode)
+        if angle_mode != "rad" or hyp:
+            processed_expr = apply_angle_mode_conversion(processed_expr, angle_mode, hyp)
         
         # Evaluate the processed expression
-        result = eval(processed_expr, {"__builtins__": {}}, {"math": math})
+        eval_namespace = {
+            "math": math,
+            "factorial": factorial,
+            "permutation": permutation,
+            "combination": combination,
+            "rand": lambda: rand(seed=rand_seed),
+            "randi": lambda min_val=0, max_val=100: randi(min_val, max_val, seed=rand_seed)
+        }
+        
+        eval_namespace.update({
+            "dms_to_decimal": lambda d, m, s, mode: dms_to_decimal(d, m, s, mode),
+            "rad_to_angle_mode": lambda v, mode: rad_to_angle_mode(v, mode),
+            "grad_to_angle_mode": lambda v, mode: grad_to_angle_mode(v, mode)
+        })
+        
+        eval_namespace.update({
+            "rectangular_to_polar_r": rectangular_to_polar_r,
+            "rectangular_to_polar_theta": lambda x, y, mode: rectangular_to_polar_theta(x, y, mode),
+            "polar_to_rectangular_x": lambda r, theta, mode: polar_to_rectangular_x(r, theta, mode),
+            "polar_to_rectangular_y": lambda r, theta, mode: polar_to_rectangular_y(r, theta, mode)
+        })
+        
+        result = eval(processed_expr, {"__builtins__": {}}, eval_namespace)
         result = clean_floating_point_errors(result)
         
         # Apply conversions based on flags and direction
@@ -169,36 +201,55 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
             'raw_value': result  # The numeric value before formatting
         }
         
+        if convert_to_dms:
+            return {
+                'value': decimal_to_dms(result, angle_mode),
+                'store_to': store_to_memory,
+                'raw_value': result
+            }
+        
         return result_tuple
             
     except Exception as e:
         return {'value': f"Error: {str(e)}", 'store_to': None, 'raw_value': None}
 
-def apply_angle_mode_conversion(expr: str, angle_mode: str) -> str:
+def apply_angle_mode_conversion(expr: str, angle_mode: str, hyp: bool = False) -> str:
     """Apply angle mode conversions to trig functions"""
     import re
     
-    if angle_mode == "deg":
-        # Convert degrees to radians for trig functions
-        expr = re.sub(r'math\.sin\((.*?)\)', r'math.sin(\1 * math.pi / 180)', expr)
-        expr = re.sub(r'math\.cos\((.*?)\)', r'math.cos(\1 * math.pi / 180)', expr)
-        expr = re.sub(r'math\.tan\((.*?)\)', r'math.tan(\1 * math.pi / 180)', expr)
-        
-        # For inverse trig functions, convert the result from radians to degrees
-        expr = re.sub(r'math\.asin\((.*?)\)', r'(math.asin(\1) * 180 / math.pi)', expr)
-        expr = re.sub(r'math\.acos\((.*?)\)', r'(math.acos(\1) * 180 / math.pi)', expr)
-        expr = re.sub(r'math\.atan\((.*?)\)', r'(math.atan(\1) * 180 / math.pi)', expr)
-    
-    elif angle_mode == "grd":
-        # Convert gradians to radians for trig functions
-        expr = re.sub(r'math\.sin\((.*?)\)', r'math.sin(\1 * math.pi / 200)', expr)
-        expr = re.sub(r'math\.cos\((.*?)\)', r'math.cos(\1 * math.pi / 200)', expr)
-        expr = re.sub(r'math\.tan\((.*?)\)', r'math.tan(\1 * math.pi / 200)', expr)
-        
-        # For inverse trig functions, convert the result from radians to gradians
-        expr = re.sub(r'math\.asin\((.*?)\)', r'(math.asin(\1) * 200 / math.pi)', expr)
-        expr = re.sub(r'math\.acos\((.*?)\)', r'(math.acos(\1) * 200 / math.pi)', expr)
-        expr = re.sub(r'math\.atan\((.*?)\)', r'(math.atan(\1) * 200 / math.pi)', expr)
+    if hyp:
+        # For hyperbolic functions, just replace trig with hyperbolic equivalents
+        # NO angle conversion needed for hyperbolic functions
+        expr = re.sub(r'math\.sin\((.*?)\)', r'math.sinh(\1)', expr)
+        expr = re.sub(r'math\.cos\((.*?)\)', r'math.cosh(\1)', expr)
+        expr = re.sub(r'math\.tan\((.*?)\)', r'math.tanh(\1)', expr)
+            
+        # For inverse hyperbolic functions - also no angle conversion
+        expr = re.sub(r'math\.asin\((.*?)\)', r'math.asinh(\1)', expr)
+        expr = re.sub(r'math\.acos\((.*?)\)', r'math.acosh(\1)', expr)
+        expr = re.sub(r'math\.atan\((.*?)\)', r'math.atanh(\1)', expr)
+    else:
+        # Standard angle mode conversions for regular trig functions
+        if angle_mode == "deg":
+            # Convert degrees to radians for trig functions
+            expr = re.sub(r'math\.sin\((.*?)\)', r'math.sin(\1 * math.pi / 180)', expr)
+            expr = re.sub(r'math\.cos\((.*?)\)', r'math.cos(\1 * math.pi / 180)', expr)
+            expr = re.sub(r'math\.tan\((.*?)\)', r'math.tan(\1 * math.pi / 180)', expr)
+            
+            # For inverse trig functions, convert the result from radians to degrees
+            expr = re.sub(r'math\.asin\((.*?)\)', r'(math.asin(\1) * 180 / math.pi)', expr)
+            expr = re.sub(r'math\.acos\((.*?)\)', r'(math.acos(\1) * 180 / math.pi)', expr)
+            expr = re.sub(r'math\.atan\((.*?)\)', r'(math.atan(\1) * 180 / math.pi)', expr)        
+        elif angle_mode == "grd":
+            # Convert gradians to radians for trig functions
+            expr = re.sub(r'math\.sin\((.*?)\)', r'math.sin(\1 * math.pi / 200)', expr)
+            expr = re.sub(r'math\.cos\((.*?)\)', r'math.cos(\1 * math.pi / 200)', expr)
+            expr = re.sub(r'math\.tan\((.*?)\)', r'math.tan(\1 * math.pi / 200)', expr)
+            
+            # For inverse trig functions, convert the result from radians to gradians
+            expr = re.sub(r'math\.asin\((.*?)\)', r'(math.asin(\1) * 200 / math.pi)', expr)
+            expr = re.sub(r'math\.acos\((.*?)\)', r'(math.acos(\1) * 200 / math.pi)', expr)
+            expr = re.sub(r'math\.atan\((.*?)\)', r'(math.atan(\1) * 200 / math.pi)', expr)
     
     return expr
 
@@ -212,12 +263,33 @@ def clean_floating_point_errors(result):
             return round(result)
     return result
 
-def process_expression(expression: str) -> str:    
+def process_expression(expression: str, angle_mode: str) -> str:    
     # Replace calculator symbols with Python equivalents
     expr = expression.replace("÷", "/").replace("π", "math.pi").replace("^", "**")
     
+    # Handle percentage (%) - simply replace with division by 100
+    expr = re.sub(r'(\d+(?:\.\d+)?)%', r'\1/100', expr)
+    
     # Handle negation syntax (-)x
     expr = re.sub(r'\(-\)(\s*\d+|\s*\(|\s*[a-zA-Z])', r'-\1', expr)
+    
+    # Handle DMS notation (5°5'5")
+    dms_pattern = r'(\d+)°(\d+)\'(\d+)"'
+    expr = re.sub(dms_pattern, r'dms_to_decimal(\1, \2, \3, "{0}")'.format(angle_mode), expr)
+    
+    # Handle radian symbol (5r)
+    rad_pattern = r'(\d+(?:\.\d+)?)r'
+    expr = re.sub(rad_pattern, r'rad_to_angle_mode(\1, "{0}")'.format(angle_mode), expr)
+    
+    # Handle gradian symbol (5g)
+    grad_pattern = r'(\d+(?:\.\d+)?)g'
+    expr = re.sub(grad_pattern, r'grad_to_angle_mode(\1, "{0}")'.format(angle_mode), expr)
+    
+    # Handle coordinate conversion functions
+    expr = re.sub(r'R►Pr\((.+?),(.+?)\)', r'rectangular_to_polar_r(\1, \2)', expr)
+    expr = re.sub(r'R►Pθ\((.+?),(.+?)\)', r'rectangular_to_polar_theta(\1, \2, "{0}")'.format(angle_mode), expr)
+    expr = re.sub(r'P►Rx\((.+?),(.+?)\)', r'polar_to_rectangular_x(\1, \2, "{0}")'.format(angle_mode), expr)
+    expr = re.sub(r'P►Ry\((.+?),(.+?)\)', r'polar_to_rectangular_y(\1, \2, "{0}")'.format(angle_mode), expr)
         
     # Handle nth root (X√) with a number prefix
     nth_root_pattern = r'(\d+)X√\('  # Match only integers before X√
@@ -305,7 +377,7 @@ def process_expression(expression: str) -> str:
     
     # Process each function
     for func_name, math_func in function_mappings.items():
-        expr = replace_function(expr, func_name, math_func)
+        expr = replace_function(expr, func_name, math_func, angle_mode)
     
     # Basic safety check
     if any(keyword in expr for keyword in ["import", "exec", "eval", "__"]):
@@ -315,9 +387,18 @@ def process_expression(expression: str) -> str:
     expr = expr.replace("math.amath.", "math.a")
     expr = expr.replace("math.math.", "math.")
     
+    # Handle factorial
+    expr = re.sub(r'(\d+)!', r'factorial(\1)', expr)
+    
+    # Handle permutation and combination
+    expr = re.sub(r'(\d+|[a-zA-Z][a-zA-Z0-9]*)\s*nPr\s*(\d+|[a-zA-Z][a-zA-Z0-9]*)', r'permutation(\1, \2)', expr)
+    expr = re.sub(r'(\d+|[a-zA-Z][a-zA-Z0-9]*)\s*nCr\s*(\d+|[a-zA-Z][a-zA-Z0-9]*)', r'combination(\1, \2)', expr)
+    
+    expr = re.sub(r'\brand\b(?!\()', r'rand()', expr)
+    
     return expr
 
-def replace_function(expression: str, func_name: str, replacement: str) -> str:
+def replace_function(expression: str, func_name: str, replacement: str, angle_mode: str) -> str:
     result = expression
     i = 0
     
@@ -349,7 +430,7 @@ def replace_function(expression: str, func_name: str, replacement: str) -> str:
             args = result[open_paren_pos + 1:close_paren_pos]
             
             # Process arguments recursively
-            processed_args = process_expression(args)
+            processed_args = process_expression(args, angle_mode)
             
             # Fix any double math prefixes
             processed_args = processed_args.replace("math.math.", "math.")
@@ -367,7 +448,7 @@ def replace_function(expression: str, func_name: str, replacement: str) -> str:
             args = result[open_paren_pos + 1:]
             
             # Process arguments recursively
-            processed_args = process_expression(args)
+            processed_args = process_expression(args, angle_mode)
             
             # Fix any double math prefixes
             processed_args = processed_args.replace("math.math.", "math.")
@@ -468,3 +549,68 @@ def mixed_to_improper_fraction(num):
     
     # Return the improper fraction
     return f"{frac.numerator}/{frac.denominator}"
+
+def dms_to_decimal(degrees, minutes=0, seconds=0, angle_mode="rad"):
+    # First convert to decimal degrees
+    decimal_degrees = degrees + (minutes / 60) + (seconds / 3600)
+    
+    # Then convert to the target angle mode
+    if angle_mode == "rad":
+        return decimal_degrees * math.pi / 180
+    elif angle_mode == "grd":
+        return decimal_degrees * 400 / 360  # 400 gradians = 360 degrees
+    else:  # Default to degrees
+        return decimal_degrees
+
+def rad_to_angle_mode(value, angle_mode="rad"):
+    if angle_mode == "deg":
+        return value * 180 / math.pi
+    elif angle_mode == "grd":
+        return value * 200 / math.pi
+    else:  # Default to radians
+        return value
+
+def grad_to_angle_mode(value, angle_mode="rad"):
+    if angle_mode == "rad":
+        return value * math.pi / 200
+    elif angle_mode == "deg":
+        return value * 9 / 10  # 90° = 100 grad
+    else:  # Default to gradians
+        return value
+
+def decimal_to_dms(decimal_value, angle_mode="rad"):
+    # First convert to decimal degrees regardless of input mode
+    if angle_mode == "rad":
+        degrees_decimal = decimal_value * 180 / math.pi
+    elif angle_mode == "grd":
+        degrees_decimal = decimal_value * 360 / 400
+    else:  # degrees
+        degrees_decimal = decimal_value
+    
+    # Handle negative values
+    sign = -1 if degrees_decimal < 0 else 1
+    degrees_decimal = abs(degrees_decimal)
+    
+    # Extract degrees (whole part)
+    degrees = int(degrees_decimal)
+    
+    # Extract minutes
+    minutes_decimal = (degrees_decimal - degrees) * 60
+    minutes = int(minutes_decimal)
+    
+    # Extract seconds
+    seconds = round((minutes_decimal - minutes) * 60)
+    
+    # Handle case where seconds round to 60
+    if seconds == 60:
+        seconds = 0
+        minutes += 1
+    if minutes == 60:
+        minutes = 0
+        degrees += 1
+    
+    # Format with sign
+    if sign == -1:
+        return f"-{degrees}°{minutes}'{seconds}\""
+    else:
+        return f"{degrees}°{minutes}'{seconds}\""

@@ -1,47 +1,35 @@
-Phase 3: core functionality:
-3. menus
-    status effects:
-        hyp (effect tbd)
-        reset
-    
-    function menus:
-        prb 
-
-    tbd:
-        O ' "
-        r<>p
-        k - puts whatever k is set to at the end of ALL user input
-        EE
-        ,
-        %
-
 Phase 4: Advanced features and polishing:
-1. error handling and edge cases
-    divide by 0
-    invalid input (eg log(-1))
-    entered text extends beyond the bounds of the app viewport
-    get the full list of possible errors to determine a plan
-2. theming and styling
-    make the ui look right
-        consider button skins and fonts
-3. memory
+2. memory
     solve history recall for lines of input
     make sure reset also erases memory
     can i have cross-session memory?
-4. misc other vital features
+3. misc other vital features
     add some kind of manual and a menu to access it -- maybe a devoted 'menu' button
     add an absolute value function Abs and have its syntax be abs()
-5. nice-to-have's
+    you need to be able to input functions and symbols into menus. this applies to stat and k
+4. nice-to-have's
     have something where the users can customize the keymap    
     have all the multi-char functions be treated as a single item, such that if the cursor is on the s in "sin(", hitting right arrow will take you to the position after the apostrophe
     make it so that if there is a return value expression other than 0, hitting another button will replace all content in the input window
         in fact the above means making the default output value blank and not '0'    
-    inserting a single character takes you out of insert mode. in fact any button press while in insert mode toggles insert mode to off
-    entering insert mode does not reset the cursor position
+    inserting a single character takes you out of insert mode. 
+        in fact any button press while in insert mode toggles insert mode to off
+        entering insert mode does not reset the cursor position
     changing the cursor position off of the end index and hitting a button replaces the character at that position
     make it so that backspace will delete the current char iff there is only one char in the input line
     modular arithmetic
     get rid of tests section
+    add key mapping for most of the prb functions, ', ", tbd others
+    what about trig squared? sin^2, etc?
+    the k menu clearing functionality would be best on most data entry menus
+        stat for sure, at least
+    consider adding scrolling. focus on doing something that doesn't modify existing text handline, but instead adds a presentation layer on top of it
+    ^^^^^
+    give all of them the old college try, then when i've implemented what i can...
+5. theming and styling
+    make the ui look right
+        consider button skins and fonts
+        consider user-settable options. or at least light/dark mode
 
 Phase 5: deployment
 1. create an executable
@@ -49,10 +37,23 @@ Phase 5: deployment
 
 NOTES: 
 some keyboard-potential functions were not included oob for the sake of clarity or avoiding ambiguity: 
-    inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
-    all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
-    e and EE (to keep hotkeys case-independent)
-    currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
-    clear maps to CLEAR because using c would impede cos, cl would impede memclr, and clr would impede memclr. so we need the full word
-certain improvements to the original calculator - added an abs function, defaulted to radians instead of degrees
-some things left out -- i got rid of memvar because rcl adequately addresses its use case and it was bloating the code without improving functionality
+    - inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
+    - all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
+    - e and EE (to keep hotkeys case-independent)
+    - currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
+    - clear maps to CLEAR because using c would impede cos, cl would impede memclr, and clr would impede memclr. so we need the full word
+certain improvements to the original calculator 
+    - added an abs function
+    - defaulted to radians instead of degrees
+    - simplified keypress sequences to enter a K value
+    - simplified keypress sequences to enter stat data
+    - added a modulus function
+    - technically, my calculator can handle higher values. but...my calculator is powered by a very large desktop computer and is not a handheld devicefor schoolchildren...
+    - my error messages are far more descriptive
+some things left out 
+    - i got rid of memvar because rcl adequately addresses its use case and it was bloating the code without improving functionality
+    - handling of freq domain error is passed to stat function evaluator
+some regrets 
+    - it was unwise to commit so hard to recreating a device which is limited by physical space. i don't really need these buttons, in general. i could have simplified everything by abstricting things to keyboard input or dropdown menus or doing what i did with statistical output -- rapidly (lol python) calculate and display all relevant possibilities for quick analysis. this would have been particularly wise for trig functions. 
+    - i should have gotten rid of K. it's a confusing feature that seems crafted to be forgotten about and to therefore vex the end user with invalid output at best, or bizarre syntax errors at worst. at least my implementation has detailed error handling and doesn't just say "SYNTAX Error"
+
