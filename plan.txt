@@ -1,59 +1,49 @@
 Phase 4: Advanced features and polishing:
-2. memory
-    solve history recall for lines of input
-    make sure reset also erases memory
-    can i have cross-session memory?
-3. misc other vital features
-    add some kind of manual and a menu to access it -- maybe a devoted 'menu' button
-    add an absolute value function Abs and have its syntax be abs()
-    you need to be able to input functions and symbols into menus. this applies to stat and k
-4. nice-to-have's
-    have something where the users can customize the keymap    
-    have all the multi-char functions be treated as a single item, such that if the cursor is on the s in "sin(", hitting right arrow will take you to the position after the apostrophe
-    make it so that if there is a return value expression other than 0, hitting another button will replace all content in the input window
-        in fact the above means making the default output value blank and not '0'    
-    inserting a single character takes you out of insert mode. 
-        in fact any button press while in insert mode toggles insert mode to off
-        entering insert mode does not reset the cursor position
+4. nice-to-have's - take notes!
     changing the cursor position off of the end index and hitting a button replaces the character at that position
-    make it so that backspace will delete the current char iff there is only one char in the input line
     modular arithmetic
-    get rid of tests section
-    add key mapping for most of the prb functions, ', ", tbd others
     what about trig squared? sin^2, etc?
-    the k menu clearing functionality would be best on most data entry menus
-        stat for sure, at least
-    consider adding scrolling. focus on doing something that doesn't modify existing text handline, but instead adds a presentation layer on top of it
-    ^^^^^
-    give all of them the old college try, then when i've implemented what i can...
+    ctrl+c keymaps to copying the current output, if it exists
+    cross-session memory save locations defined for big-3 os types. (right now this will only work on linux. maybe mac? idk)
+    more comprehensive keyboard mappings -- hyp for hyp. asin, acos, atan for arc-trig functions. k for k. most prb functions, ', ". TODO ADD MORE
+    add a table of such mappings
 5. theming and styling
     make the ui look right
         consider button skins and fonts
         consider user-settable options. or at least light/dark mode
+6. manual
+    update it depending on what nice to haves you included. take notes
 
 Phase 5: deployment
 1. create an executable
-
 
 NOTES: 
 some keyboard-potential functions were not included oob for the sake of clarity or avoiding ambiguity: 
     - inverse trig (to get to sin^-1, you have to first type sin, at which point the calculator adds sin),
     - all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
     - e and EE (to keep hotkeys case-independent)
-    - currently, I'm anticipating including custom hotkey creation. i'm also anticipating that being a struggle which is maybe out of scope for this app. so we will see.
     - clear maps to CLEAR because using c would impede cos, cl would impede memclr, and clr would impede memclr. so we need the full word
 certain improvements to the original calculator 
     - added an abs function
     - defaulted to radians instead of degrees
     - simplified keypress sequences to enter a K value
+    - reduced the number of chars which are possible to enter into K. there's no use to putting K=R>Ptheta at the end of every user function, that can ONLY cause errors. only menus which return characters which can validly occur at the end of an expression are valid inserts into K
+        - some functions which will lead to error are not addressed -- you can add "sin(" to the end of every function, for example, which is ridiculous. the improvement over the real calculator is present in mine, but there are still cases where having a 'k' menu is kinda...dumb still
     - simplified keypress sequences to enter stat data
     - added a modulus function
     - technically, my calculator can handle higher values. but...my calculator is powered by a very large desktop computer and is not a handheld devicefor schoolchildren...
     - my error messages are far more descriptive
+    - my insert mode allows insertion of as many characters as desired, until insert is manually turned off
 some things left out 
     - i got rid of memvar because rcl adequately addresses its use case and it was bloating the code without improving functionality
     - handling of freq domain error is passed to stat function evaluator
 some regrets 
     - it was unwise to commit so hard to recreating a device which is limited by physical space. i don't really need these buttons, in general. i could have simplified everything by abstricting things to keyboard input or dropdown menus or doing what i did with statistical output -- rapidly (lol python) calculate and display all relevant possibilities for quick analysis. this would have been particularly wise for trig functions. 
     - i should have gotten rid of K. it's a confusing feature that seems crafted to be forgotten about and to therefore vex the end user with invalid output at best, or bizarre syntax errors at worst. at least my implementation has detailed error handling and doesn't just say "SYNTAX Error"
+    - i wanted to add custom hotkey and user editable keyword creation. For example, currently pressing s, i, and n in succession results in a sin functin being added to input. i thought it would be nice to include a 2-column table with the bottom row empty and editable, in which the user can enter a key in column 1 and then select a calculator button in column 1. before saving the new mapping the program would check for prefix collision among the existing hotkeys, and then add the mapping if such collision was not found. Obviously, given the detail, I really began putting some work into implementing this. but it required a deep architectural change to move out of coupling buffer input directly to functions and into creating a key mapping dictionary that could be added to through the user input and then changing keypressevent to data driven functionality. additionally, there is the concern around some keymappings adding input to screen, others altering the calculator state, still others alter or recall values from memory. all cases are handled by different modules and so need individual consideration under this new approach...it was out of scope. although if this were to be a widespread app there would exist SOME users who would want something like remapping spacebar off of secondary and onto like sin or something, the overwhelming majority of users would not use it except for adding obvious mappings to functions that could not be keyboard-input oob like inverse trig functions or certain state alterations. If I included such mappings oob, then the huge majority of the use cases for my custom implementation would become null. and i wouldn't have to refactor so much code, so it felt like a win-win. but a lose in the sense that a very complex and flashy feature was left on the cutting room floor. so it goes
+some general notes
+    - the save state right now only works on linux, meaning i can only achieve cross session memory on linux. unclear what will occur on other os types when they attempt to save, and do not have time to build a windows vm and test it in there
+
+Nice To Have notes for step 6
+
 

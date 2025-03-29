@@ -63,7 +63,8 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
             "permutation": permutation,
             "combination": combination,
             "rand": lambda: rand(seed=rand_seed),
-            "randi": lambda min_val=0, max_val=100: randi(min_val, max_val, seed=rand_seed)
+            "randi": lambda min_val=0, max_val=100: randi(min_val, max_val, seed=rand_seed),
+            "abs": abs
         }
         
         eval_namespace.update({
@@ -482,7 +483,12 @@ def balance_parentheses(expr: str) -> str:
 
 def decimal_to_mixed_fraction(num):
     if num == int(num):  # If it's a whole number
-        return str(int(num))
+        result_str = str(int(num))
+        return {
+            'value': result_str,
+            'store_to': None,
+            'raw_value': num
+        }
         
     # Get the whole number part
     whole = int(num)
@@ -502,15 +508,18 @@ def decimal_to_mixed_fraction(num):
     
     if whole == 0:
         # Just return the fraction if no whole number part
-        return f"{sign}{frac.numerator}/{frac.denominator}"
+        result_str = f"{sign}{frac.numerator}/{frac.denominator}"
     else:
         # Return mixed number format
-        return f"{whole}┘{frac.numerator}/{frac.denominator}"
+        result_str = f"{whole}┘{frac.numerator}/{frac.denominator}"
+        
+    return {
+        'value': result_str,
+        'store_to': None,
+        'raw_value': num
+    }
     
 def parse_mixed_fractions(expression: str) -> str:
-    """
-    Parse mixed fractions like "3┘1/2" or "3┘1÷2" into decimal values.
-    """
     # Use regex to find all mixed fractions in the expression
     import re
     
@@ -539,16 +548,21 @@ def parse_mixed_fractions(expression: str) -> str:
     return re.sub(pattern, replace_mixed_fraction, expression)
 
 def mixed_to_improper_fraction(num):
-    """Convert a number to an improper fraction representation."""
     if num == int(num):  # If it's a whole number
-        return f"{int(num)}/1"
+        result_str = f"{int(num)}/1"
+    else:
+        # Convert to fraction using Python's Fraction
+        from fractions import Fraction
+        frac = Fraction(num).limit_denominator(1000)
+        
+        # Format as improper fraction
+        result_str = f"{frac.numerator}/{frac.denominator}"
     
-    # Convert to fraction using Python's Fraction
-    from fractions import Fraction
-    frac = Fraction(num).limit_denominator(1000)
-    
-    # Return the improper fraction
-    return f"{frac.numerator}/{frac.denominator}"
+    return {
+        'value': result_str,
+        'store_to': None,
+        'raw_value': num
+    }
 
 def dms_to_decimal(degrees, minutes=0, seconds=0, angle_mode="rad"):
     # First convert to decimal degrees
