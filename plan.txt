@@ -1,18 +1,9 @@
 Phase 4: Advanced features and polishing:
-4. nice-to-have's - take notes!
-    changing the cursor position off of the end index and hitting a button replaces the character at that position
-    modular arithmetic
-    what about trig squared? sin^2, etc?
-    ctrl+c keymaps to copying the current output, if it exists
-    cross-session memory save locations defined for big-3 os types. (right now this will only work on linux. maybe mac? idk)
-    more comprehensive keyboard mappings -- hyp for hyp. asin, acos, atan for arc-trig functions. k for k. most prb functions, ', ". TODO ADD MORE
-    add a table of such mappings
 5. theming and styling
     make the ui look right
         consider button skins and fonts
+        make sure π shows up kinda stylized, not just up-over-down lines
         consider user-settable options. or at least light/dark mode
-6. manual
-    update it depending on what nice to haves you included. take notes
 
 Phase 5: deployment
 1. create an executable
@@ -23,6 +14,7 @@ some keyboard-potential functions were not included oob for the sake of clarity 
     - all the menu functions (they necessarily will involve button clicks on the menu itself, and thus are limited to button clicks on the calculator interface)
     - e and EE (to keep hotkeys case-independent)
     - clear maps to CLEAR because using c would impede cos, cl would impede memclr, and clr would impede memclr. so we need the full word
+    - k was avoided because of collision while in vs out of the k menu
 certain improvements to the original calculator 
     - added an abs function
     - defaulted to radians instead of degrees
@@ -31,7 +23,7 @@ certain improvements to the original calculator
         - some functions which will lead to error are not addressed -- you can add "sin(" to the end of every function, for example, which is ridiculous. the improvement over the real calculator is present in mine, but there are still cases where having a 'k' menu is kinda...dumb still
     - simplified keypress sequences to enter stat data
     - added a modulus function
-    - technically, my calculator can handle higher values. but...my calculator is powered by a very large desktop computer and is not a handheld devicefor schoolchildren...
+    - technically, my calculator can handle higher values. but...my calculator is powered by a very large desktop computer and is not a handheld device for school children...
     - my error messages are far more descriptive
     - my insert mode allows insertion of as many characters as desired, until insert is manually turned off
 some things left out 
@@ -43,7 +35,6 @@ some regrets
     - i wanted to add custom hotkey and user editable keyword creation. For example, currently pressing s, i, and n in succession results in a sin functin being added to input. i thought it would be nice to include a 2-column table with the bottom row empty and editable, in which the user can enter a key in column 1 and then select a calculator button in column 1. before saving the new mapping the program would check for prefix collision among the existing hotkeys, and then add the mapping if such collision was not found. Obviously, given the detail, I really began putting some work into implementing this. but it required a deep architectural change to move out of coupling buffer input directly to functions and into creating a key mapping dictionary that could be added to through the user input and then changing keypressevent to data driven functionality. additionally, there is the concern around some keymappings adding input to screen, others altering the calculator state, still others alter or recall values from memory. all cases are handled by different modules and so need individual consideration under this new approach...it was out of scope. although if this were to be a widespread app there would exist SOME users who would want something like remapping spacebar off of secondary and onto like sin or something, the overwhelming majority of users would not use it except for adding obvious mappings to functions that could not be keyboard-input oob like inverse trig functions or certain state alterations. If I included such mappings oob, then the huge majority of the use cases for my custom implementation would become null. and i wouldn't have to refactor so much code, so it felt like a win-win. but a lose in the sense that a very complex and flashy feature was left on the cutting room floor. so it goes
 some general notes
     - the save state right now only works on linux, meaning i can only achieve cross session memory on linux. unclear what will occur on other os types when they attempt to save, and do not have time to build a windows vm and test it in there
-
-Nice To Have notes for step 6
-
-
+    - you can replace characters from previous cursor positions, but the only way to replace the final char is to delete and re-enter it. which is an extra button press but saves like 200 lines of code between several modules
+    - i'm very happy with the modulo addition. however, note that it does NOT output any data in sci or eng modes. an earlier, pre release version of the calculator had it do so, and i realized that i was accross the board applying the modulo function to the mantissa, stripping the rest, and then just appending x10^0.  which just felt...pointless. and bloated. I was initially worried that this would be suboptimal for people working with moduli high enough that there are least positive residues which would need to be output in scientific notation, but those isolated and unlikely cases are already addressed by the auto-output of the calculator and the number length limitation that converts certain very high in magnitude results to scientific notation automatically
+    - I'm happy to report cross-platform compatibility. the save/load system behaves differently for system = windows/darwin/other (for linux and other unix-like systems)

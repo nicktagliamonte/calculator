@@ -5,7 +5,7 @@ from .coordinate import rectangular_to_polar_r, rectangular_to_polar_theta, pola
 
 def evaluate_expression(expression: str, angle_mode: str = "rad", output_format: str = "flo", 
                        decimal_places: int = None, ans: str = "0", hyp: bool = False,
-                       rand_seed=None) -> dict:
+                       rand_seed=None, modulus=None) -> dict:
     try:
         # Check for memory storage operations (►a, ►b, etc.)
         store_match = re.search(r'►([a-e]|r)$', expression)
@@ -126,8 +126,7 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
                     if mantissa == int(mantissa):
                         formatted_result = f"{int(mantissa)}x10^{exponent}"
                     else:
-                        formatted_result = f"{mantissa:.6g}x10^{exponent}"
-                
+                        formatted_result = f"{mantissa:.6g}x10^{exponent}"                
         elif output_format == "sci":
             # Scientific notation: ALWAYS use 1-10 x 10^n format
             if result == 0:
@@ -141,8 +140,7 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
                 if mantissa == int(mantissa):
                     formatted_result = f"{int(mantissa)}x10^{exponent}"
                 else:
-                    formatted_result = f"{mantissa:.6g}x10^{exponent}"
-                    
+                    formatted_result = f"{mantissa:.6g}x10^{exponent}"                    
         elif output_format == "eng":
             # Engineering notation: ALWAYS use 1-1000 x 10^(3n) format
             if result == 0:
@@ -195,7 +193,32 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
                     eng_exponent = 3 * (exponent // 3)
                     mantissa = result / (10 ** eng_exponent)
                     formatted_result = f"{mantissa:.{decimal_places}f}x10^{eng_exponent}"
-        
+                    
+        # Apply modular arithmetic if modulus is specified
+        if modulus is not None and modulus.strip():
+            try:
+                mod_value = int(modulus)
+                if mod_value > 1:
+                    # If result is very close to an integer, round it first
+                    if isinstance(result, float) and abs(result - round(result)) < 1e-10:
+                        result = round(result)
+                        
+                    # For integer results, apply modular arithmetic
+                    if isinstance(result, int) or result.is_integer():
+                        # Convert to integer if needed
+                        if isinstance(result, float):
+                            result = int(result)
+                        # Calculate least positive residue
+                        result = ((result % mod_value) + mod_value) % mod_value
+                        formatted_result = str(result)
+            except (ValueError, TypeError):
+                # Invalid modulus value
+                return {
+                    'value': f"Error: Invalid modulus '{modulus}'",
+                    'store_to': store_to_memory,
+                    'raw_value': None
+                }
+                
         result_tuple = {
             'value': formatted_result,
             'store_to': store_to_memory,

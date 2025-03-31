@@ -39,15 +39,39 @@ class ManualWindow(QDialog):
 # TI-30X IIS Calculator Manual
 
 ## Basic Operations
-- Use calculator buttons or keyboard input for numbers, operators, or the following list of default keyword mappings (type the word to get the effect in parentheses):
-    - sin, cos, tan (trig functions)
-    - log, ln (log base 10 and natural log, by default)
-    - sqrt, xrt (root functions. xrt must be preceded by a numeric value to act as n and followed by a number to act as j in the phrase "j^(1/n)")
-    - pi, ans (constants, where ans is the most recently obtained answer)
-    - clear, memclr (functions to clear the current output or all memory values, respectively)
-    - fix (opens a menu to set the number of decimal places results should include from 0-9. Note that 'f' means calculator defined decimal digits on a case-by-case basis)
-    - menu (open this menu)
-- Press enter or return as a stand-in for clicking the = key
+- Below is a table of keyboard shortcuts and their calculator equivalents
+
+| Keyboard Input | Calculator Function | Category |
+| -------------- | ------------------ | -------- |
+| sin            | sin(                          | Trigonometric |
+| cos            | cos(                          | Trigonometric |
+| tan            | tan(                          | Trigonometric |
+| asin           | sin^(-1)(                     | Inverse Trig |
+| acos           | cos^(-1)(                     | Inverse Trig |
+| atan           | tan^(-1)(                     | Inverse Trig |
+| hyp            | Toggles Hyperbolic Mode       | Hyperbolic |
+| nPr            | nPr                           | Combinatorial |
+| nCr            | nCr                           | Combinatorial |
+| !              | !                             | Combinatorial |
+| log            | log(                          | Logarithmic |
+| ln             | ln(                           | Logarithmic |
+| sqrt           | √(                            | Root Functions |
+| xrt            | X√(                           | Root Functions |
+| pi             | π                             | Constants |
+| ans            | Most Recent Answer            | Constants |
+| clear          | Clear the Screen              | System |
+| memclr         | Clear the Screen and Memory   | System |
+| ctrl + c       | Copy                          | System |
+| menu           | Display this menu             | System |
+| fix            | FIX                           | Display Format |
+| abs            | ABS(                          | Functions |
+| '              | Seconds symbol                | Angle Notation |
+| "              | Minutes symbol                | Angle Notation |
+| deg            | set degree mode               | Angle Mode |
+| rad            | set radian mode               | Angle Mode |
+| grd            | set gradian                   | Angle Mode |
+| ins            | set ins mode                  | Edit Mode |
+| mod            | Enter the modulus menu        | Modulus Mode |
 
 ### Numbers and Arithmetic
 - Enter numbers using the number keys (0-9)
@@ -67,11 +91,19 @@ class ManualWindow(QDialog):
 - DEL deletes the character at the cursor
 - INS toggles insert mode
 - ANS recalls the previous answer
+- ABS calculates the absolute value
 
 ## Modes and Settings
 
+### Number Theoretic Functions
+- MOD access the modulus menu  
+    - With the modulus set to some integer, all calculations will be done modulo that integer
+    - The result is always a member of the least positive residue class
+    - The current modulus is shown in the status bar
+
 ### Angle Modes
 - DRG cycles between Degree, Radian, and Gradian modes
+- Hyp converts all trigonometric functions to hyperbolic functions
 - Current mode is shown in the status bar
 
 ### Number Format
@@ -154,6 +186,8 @@ class ManualWindow(QDialog):
 - Use the arrow keys to navigate input
 - Press Up/Down arrows to navigate calculation history
 - Use parentheses for complex expressions
+- Use Ctrl + C to copy text from the display
+- Replace individual characters on the input line by setting the cursor to the desired location and entering the new character
 """
         
         # Convert Markdown to HTML (simple conversion for basic formatting)
@@ -161,14 +195,52 @@ class ManualWindow(QDialog):
         self.text_browser.setHtml(html_content)
     
     def markdown_to_html(self, markdown):
-        """Simple Markdown to HTML converter for basic formatting"""
         html = "<html><body style='font-family: Arial, sans-serif;'>"
-        
+    
         # Process line by line
         lines = markdown.split('\n')
         in_list = False
+        in_table = False
         
-        for line in lines:
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # Check for table start
+            if line.strip().startswith('|') and not in_table:
+                in_table = True
+                html += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>"
+                
+                # Process header row
+                header_cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
+                html += "<tr style='background-color: #f1f1f1;'>"
+                for cell in header_cells:
+                    html += f"<th>{cell}</th>"
+                html += "</tr>"
+                
+                # Skip the separator row (next line)
+                i += 2  # Skip to the first data row
+                
+                # Process data rows with alternating colors
+                row_number = 0
+                while i < len(lines) and lines[i].strip().startswith('|'):
+                    row_number += 1
+                    data_cells = [cell.strip() for cell in lines[i].strip().strip('|').split('|')]
+                    
+                    # Apply alternating row colors
+                    if row_number % 2 == 0:  # Even rows
+                        html += "<tr style='background-color: #f2f2f2;'>"
+                    else:  # Odd rows
+                        html += "<tr>"
+                        
+                    for cell in data_cells:
+                        html += f"<td>{cell}</td>"
+                    html += "</tr>"
+                    i += 1
+                
+                html += "</table>"
+                continue
+            
             # Headers
             if line.startswith('# '):
                 html += f"<h1>{line[2:]}</h1>"
@@ -193,9 +265,13 @@ class ManualWindow(QDialog):
                     html += "</ul>"
                     in_list = False
                 html += f"<p>{line}</p>"
+            
+            i += 1
         
         if in_list:
             html += "</ul>"
+        if in_table:
+            html += "</table>"
         
         html += "</body></html>"
         return html

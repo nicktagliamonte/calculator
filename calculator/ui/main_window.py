@@ -3,7 +3,7 @@ import re
 from PySide6.QtCore import QTimer # type: ignore
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QGridLayout, QWidget, QLabel, QPushButton, QScrollArea, QFrame # type: ignore
 from PySide6.QtCore import Qt, QObject # type: ignore
-from PySide6.QtGui import QKeyEvent # type: ignore
+from PySide6.QtGui import QKeyEvent, QGuiApplication # type: ignore
 from logic.stat import StatisticsManager
 from logic.statvar_menu import StatVarMenuManager
 from .manual import ManualWindow
@@ -30,6 +30,8 @@ class MainWindow(QMainWindow):
         self.is_in_hyp = False  
         self.k_value = ""  # Store the K value entered by user
         self.k_mode_active = False  # Track if K mode is active
+        self.mod_value = ""  # Store the MOD value entered by user
+        self.mod_mode_active = False  # Track if MOD mode is active
         
         self.session_memory = []  # Store history of expressions
         self.history_index = -1   # Current position in history (-1 means not in history)
@@ -106,19 +108,17 @@ class MainWindow(QMainWindow):
 
     def add_buttons(self, grid_layout):
         self.buttons = [
-            # Add Menu button at position (0,0)
-            ("MENU", "", 0, 0),
-            
-            # row 1: 2nd/NULL, DRG/"SCI/ENG", DEL/INS, ABS/NULL
+            # row 1: 2nd/NULL, DRG/"SCI/ENG", DEL/INS
             ("2ND", "", 0, 1),
             ("DRG", "SCI/ENG", 0, 2),
             ("DEL", "INS", 0, 3),
-            ("ABS", "", 0, 4),
 
-            # row 2: log/10^x, prb/f<>d, ° ' \" /r<>p
+            # row 2: log/10^x, prb/f<>d, ° ' \" /r<>p, ABS/NULL
+            ("MOD", "", 1, 0),
             ("LOG", "10^x", 1, 1),
             ("PRB", "f<>d", 1, 2),
             ("° ' \"", "r<>p", 1, 3),
+            ("ABS", "", 1, 4),
 
             # row 3: ln/e^x, "a b/c"/"a b/c <> d/e", data/stat, statvar/exit stat, clear/memclr
             ("LN", "e^x", 2, 0),
@@ -163,6 +163,7 @@ class MainWindow(QMainWindow):
             ("=", "", 7, 4),
 
             # row 9: 0/reset, ./fix, (-)/ans
+            ("MENU", "", 8, 0),
             ("0", "RESET", 8, 1),
             (".", "FIX", 8, 2),
             ("(-)", "ANS", 8, 3),
@@ -211,6 +212,10 @@ class MainWindow(QMainWindow):
             # Connect the π button
             if primary == "π":
                 button.clicked.connect(self.add_pi)
+                
+            # Connect the MOD button
+            if primary == "MOD":
+                button.clicked.connect(self.add_mod)
                     
             # Connect the LOG button to the add_log method
             if primary == "LOG":
@@ -411,7 +416,16 @@ class MainWindow(QMainWindow):
             button_2nd.setStyleSheet("background-color: white; color: black; font-size: 12px;")
             
     def keyPressEvent(self, event: QKeyEvent):
-        # First, handle special keys that should work in all modes
+        # Check for Ctrl+C to copy output text
+        if event.key() == Qt.Key_C and event.modifiers() & Qt.ControlModifier:
+            output_text = self.display_result.text()
+            if output_text:
+                # Copy to clipboard
+                clipboard = QGuiApplication.clipboard()
+                clipboard.setText(output_text)                
+            return
+        
+        # Handle special keys that should work in all modes
         if event.key() == Qt.Key_Space:
             # Toggle 2nd button functionality should always work
             self.invert_2nd_button_color()
@@ -462,12 +476,18 @@ class MainWindow(QMainWindow):
             
             # Define function sequences
             function_sequences = {
-                "sin": "sin(", "cos": "cos(", "tan": "tan(",
-                "log": "log(", "ln": "ln(",
-                "sqrt": "√(", "xrt": "X√(",
-                "pi": "π", "ans": "Ans",
-                "clear": "CLEAR", "memclr": "MEMCLR",
-                "fix": "FIX", "menu": "MENU", "abs": "ABS"
+                "sin": "sin(", "cos": "cos(", "tan": "tan(",  # Trig functions
+                "asin": "sin^(-1)(", "acos": "cos^(-1)(", "atan": "tan^(-1)(",  # Inverse trig functions
+                "hyp": "HYP(",  # Hyperbolic functions
+                "npr": "nPr", "ncr": "nCr", "!": "!", # Combinatorial functions
+                "log": "log(", "ln": "ln(",     # Logarithmic functions
+                "sqrt": "√(", "xrt": "X√(",    # Root functions
+                "pi": "π", "ans": "Ans",       # Constants
+                "clear": "CLEAR", "memclr": "MEMCLR",  # Clear functions
+                "fix": "FIX", "menu": "MENU", "abs": "ABS", # Other functions
+                "deg": "deg", "rad": "rad", "grd": "grd", # Angle modes
+                "ins": "INS",  # Insert mode
+                "mod": "MOD"  # Modulus function
             }
 
             # Check if buffer matches a valid function
@@ -490,6 +510,8 @@ class MainWindow(QMainWindow):
                             self.add_fix()
                         elif func == "menu":
                             self.add_menu()
+                        elif func == "ins":
+                            self.insert_mode = not self.insert_mode
                         return
                     elif self.is_in_menu and self.menu_type == "k":
                         # In K menu - append the function to the K value
@@ -501,6 +523,26 @@ class MainWindow(QMainWindow):
                             self.current_input = new_text
                             self.cursor_position = len(new_text) - 1
                             self.update_display_with_cursor()
+                    elif self.is_in_menu and self.menu_type == "mod":
+                        current_text = self.display_input.text()
+                        value_part = ""
+                        
+                        # Extract value part after the = sign
+                        if "=" in current_text:
+                            clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                            prefix, value_part = clean_text.split("=", 1)
+                        
+                        # Modified backspace behavior
+                        if len(value_part) == 1:
+                            # Only one character, delete it
+                            value_part = ""
+                        elif value_part:
+                            # More than one character, delete last one
+                            value_part = value_part[:-1]
+                        
+                        # Update the MOD value in real-time
+                        self.update_mod_field(value_part)
+                        return
                     else:
                         # Regular function insertion
                         self.insert_function(function_sequences[func])
@@ -554,6 +596,47 @@ class MainWindow(QMainWindow):
                 # Update the K value in real-time
                 self.update_k_field(value_part)
                 return
+        elif self.is_in_menu and self.menu_type == "mod":
+            # Only accept numbers for modulo input
+            if event.text().isdigit():
+                # Get current text
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                
+                # Add the new digit
+                value_part += event.text()
+                
+                # Update the MOD value in real-time
+                self.update_mod_field(value_part)
+                return
+            
+            # Handle backspace for modulus menu
+            elif event.key() == Qt.Key_Backspace:
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                
+                # Modified backspace behavior
+                if len(value_part) == 1:
+                    # Only one character, delete it
+                    value_part = ""
+                elif value_part:
+                    # More than one character, delete last one
+                    value_part = value_part[:-1]
+                
+                # Update the MOD value in real-time
+                self.update_mod_field(value_part)
+                return
+    
         # Check STATVAR menu first - before any other menu checks
         if self.statvar_menu.active:
             # Check for Enter/Return FIRST (before left/right keys)
@@ -886,6 +969,19 @@ class MainWindow(QMainWindow):
             self.toggle_secondary_state()
             event.accept()  # Explicitly accept the event to prevent default handling
             return
+        
+        if event.key() == Qt.Key_Apostrophe:
+            self.update_input_state("'")
+            
+        if event.key() == Qt.Key_QuoteDbl:
+            self.update_input_state("\"")
+            
+        if event.key() == Qt.Key_Exclam:
+            current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+            if current_text == "0":
+                self.update_input_state("Ans!")
+            else:
+                self.update_input_state("!")
     
         key_to_text = {
             Qt.Key_0: "0", Qt.Key_1: "1", Qt.Key_2: "2", Qt.Key_3: "3",
@@ -897,15 +993,6 @@ class MainWindow(QMainWindow):
         
         straight_operators = {
             Qt.Key_Plus: "+", Qt.Key_Minus: "-", Qt.Key_Asterisk: "*"
-        }
-        
-        function_sequences = {
-            "sin": "sin(", "cos": "cos(", "tan": "tan(",  # Trig functions
-            "log": "log(", "ln": "ln(",     # Logarithmic functions
-            "sqrt": "√(", "xrt": "X√(",    # Root functions
-            "pi": "π", "ans": "Ans",       # Constants
-            "clear": "CLEAR", "memclr": "MEMCLR",  # Clear functions
-            "fix": "FIX", "menu": "MENU", "abs": "ABS" # Other functions
         }
         
         if event.key() == Qt.Key_Left:
@@ -1068,6 +1155,24 @@ class MainWindow(QMainWindow):
             
             self.update_display_with_cursor()
             return
+        
+        if self.is_in_menu and self.menu_type == "mod":
+            # Get current MOD menu content
+            current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+            
+            if current_text == "MODULUS=" or len(current_text) <= 8:
+                # No text after MOD=, exit the menu
+                self.is_in_menu = False
+                self.menu_type = None
+                self.display_input.setText("")
+                self.current_input = "0"
+            else:
+                # Clear text after MOD=
+                self.display_input.setText("MODULUS=")
+                self.cursor_position = 8
+            
+            self.update_display_with_cursor()
+            return
     
         if self.is_in_menu:
             self.is_in_menu = False
@@ -1169,6 +1274,35 @@ class MainWindow(QMainWindow):
         if func_name == "ABS":
             self.add_abs()
             return
+        
+        if func_name == "INS":
+            self.insert_mode = not self.insert_mode
+            self.update_status_bar()
+            return
+        
+        if func_name == "HYP":
+            self.is_in_hyp = not self.is_in_hyp
+            self.update_status_bar()
+            return
+        
+        if func_name == "MOD":
+            self.add_mod()
+            return
+            
+        if func_name == "deg":
+            self.angle_mode = "deg"
+            self.update_status_bar()
+            return
+        
+        if func_name == "rad":
+            self.angle_mode = "rad"
+            self.update_status_bar()
+            return
+        
+        if func_name == "grd":
+            self.angle_mode = "grd"
+            self.update_status_bar()
+            return            
         
         self.update_input_state(func_name, replace_zero=True)
             
@@ -1373,6 +1507,23 @@ class MainWindow(QMainWindow):
                 
         if self.secondary_state:
             self.toggle_secondary_state()
+            
+    def add_mod(self):
+        if self.is_in_menu:
+            return
+        if self.display_result.text() != "":
+            self.clear_input()
+            
+        if self.mod_mode_active:
+            self.mod_mode_active = False
+            self.mod_value = ""
+            self.update_status_bar()
+        else:
+            new_text = "MODULUS="
+            self.push_menu_state("mod")  # Use push_menu_state
+            self.display_input.setText(new_text)
+            self.cursor_position = 8  # Position cursor after "MODULUS="
+            self.update_display_with_cursor()
             
     def add_negate(self):
         if self.is_in_menu:
@@ -1909,6 +2060,8 @@ class MainWindow(QMainWindow):
                     self.current_input = "0"
                     self.k_mode_active = False
                     self.k_value = ""
+                    self.mod_mode_active = False
+                    self.mod_value = ""
                     
                     # Clear stat data
                     self.stat_manager.clear_all_data()
@@ -1926,6 +2079,7 @@ class MainWindow(QMainWindow):
                     self.display_result.setText("RESET COMPLETE")
                     self.display_input.setText("")
                     self.update_display_with_cursor()
+                    self.update_status_bar()
                     QTimer.singleShot(1500, lambda: self.display_result.setText(""))
                 else:
                     self.is_in_menu = False
@@ -2060,6 +2214,27 @@ class MainWindow(QMainWindow):
                 self.current_input = "0"
                 self.update_status_bar()
                 return
+            elif self.menu_type == "mod":
+                # Get user entered MOD value (strip the "MODULUS=" prefix)
+                mod_input = self.display_input.text().replace("<u>", "").replace("</u>", "")
+                mod_input = mod_input[8:]
+                
+                # Store the MOD value
+                self.mod_value = mod_input
+                
+                # Activate MOD mode
+                self.mod_mode_active = True
+                
+                # Exit menu mode
+                self.is_in_menu = False
+                self.menu_type = None
+                
+                # Show confirmation and update status bar
+                self.display_input.setText(f"MOD MODE: {mod_input}")
+                QTimer.singleShot(1500, lambda: self.display_input.setText("0"))
+                self.current_input = "0"
+                self.update_status_bar()
+                return
             # Handle other menu types here
             
         if "x'(" in self.current_input or "y'(" in self.current_input:
@@ -2104,7 +2279,8 @@ class MainWindow(QMainWindow):
                             decimal_places=self.decimal_places,
                             ans=self.ans,
                             hyp=self.is_in_hyp,
-                            rand_seed=self.rand_value)
+                            rand_seed=self.rand_value,
+                            modulus=self.mod_value)
 
         # Check if we need to store the result in memory
         if result_obj['store_to'] is not None:
@@ -2154,6 +2330,10 @@ class MainWindow(QMainWindow):
         # Add K mode indicator if active
         if self.k_mode_active:
             status_text += f" | K={self.k_value}"
+            
+        # Add MOD mode indicator if active
+        if self.mod_mode_active:
+            status_text += f" | MOD={self.mod_value}"
         
         self.status_bar.setText(status_text)
         
@@ -2169,16 +2349,24 @@ class MainWindow(QMainWindow):
             if self.insert_mode:
                 # Insert at cursor position
                 result = current_text[:self.cursor_position + 1] + new_text + current_text[self.cursor_position + 1:]
+                # Move cursor after the inserted text
+                self.cursor_position += len(new_text)
             else:
-                # Normal append mode
-                result = current_text + new_text
+                # Replace mode: If cursor is not at the end, replace the character
+                if self.cursor_position < len(current_text) - 1:
+                    result = current_text[:self.cursor_position] + new_text + current_text[self.cursor_position + 1:]
+                    # Move cursor after the replaced character
+                    self.cursor_position += 1
+                else:
+                    # At the end, append
+                    result = current_text + new_text
+                    # Move cursor to the end
+                    self.cursor_position = len(result) - 1
         
         # Update both states
         self.current_input = result
         self.display_input.setText(result)
         
-        # Update cursor position
-        self.cursor_position = len(result) - 1 if not self.insert_mode else self.cursor_position + len(new_text)
         self.update_display_with_cursor()
                 
     def update_stat_field(self, text_value):
@@ -2217,34 +2405,71 @@ class MainWindow(QMainWindow):
         return "Error: Unknown function"
     
     def is_protected_prefix_position(self, current_text, cursor_pos):
-        if not self.stat_manager.in_data_entry:
-            return False
-            
-        # First check: cursor in range [0,2] (would affect any prefix)
-        if cursor_pos <= 2:
-            return True
-            
-        # Second check: protect the = sign
-        if cursor_pos < len(current_text) and current_text[cursor_pos] == '=':
-            return True
-            
-        # Third check: protect any letters in the prefix (for 'freq=' case)
-        if cursor_pos < len(current_text) and current_text[cursor_pos].isalpha():
-            return True
-            
-        # Fourth check: for backspace, check if the previous character is part of prefix
-        # For 'freq=', protect position right after 'q'
-        if '=' in current_text:
-            prefix = current_text.split('=')[0] + '='
-            if cursor_pos <= len(prefix):
+        # Check for MODULUS= prefix protection
+        if self.is_in_menu and self.menu_type == "mod":
+            # Protect the entire "MODULUS=" prefix (8 characters long)
+            if cursor_pos < 8:
                 return True
                 
+            # Protect the = sign
+            if cursor_pos < len(current_text) and current_text[cursor_pos] == '=':
+                return True
+                
+            # For backspace, check if previous character is part of the MODULUS= prefix
+            if '=' in current_text:
+                prefix = "MODULUS="
+                if cursor_pos <= len(prefix):
+                    return True
+                    
+        # Check for K= prefix protection
+        if self.is_in_menu and self.menu_type == "k":
+            # Protect the entire "K=" prefix
+            if cursor_pos < 2:  # K= is 2 characters long
+                return True
+                
+            # Protect the = sign
+            if cursor_pos < len(current_text) and current_text[cursor_pos] == '=':
+                return True
+                
+            # For backspace, check if previous character is part of K= prefix
+            if '=' in current_text:
+                prefix = "K="
+                if cursor_pos <= len(prefix):
+                    return True
+        
+        # Statistics prefix protection code
+        if self.stat_manager.in_data_entry:
+            # First check: cursor in range affecting prefix
+            if cursor_pos <= 2:
+                return True
+                
+            # Second check: protect the = sign
+            if cursor_pos < len(current_text) and current_text[cursor_pos] == '=':
+                return True
+                
+            # Third check: protect any letters in the prefix (for 'freq=' case)
+            if cursor_pos < len(current_text) and current_text[cursor_pos].isalpha():
+                return True
+                
+            # Fourth check: for backspace, check if the previous character is part of prefix
+            if '=' in current_text:
+                prefix = current_text.split('=')[0] + '='
+                if cursor_pos <= len(prefix):
+                    return True
+                    
         return False
     
     def update_k_field(self, text_value):
         # Update the display
         self.display_input.setText("K=" + text_value)
         self.current_input = "K=" + text_value
+        self.cursor_position = len(self.current_input) - 1
+        self.update_display_with_cursor()
+        
+    def update_mod_field(self, text_value):
+        # Update the display
+        self.display_input.setText("MODULUS=" + text_value)
+        self.current_input = "MODULUS=" + text_value
         self.cursor_position = len(self.current_input) - 1
         self.update_display_with_cursor()
         

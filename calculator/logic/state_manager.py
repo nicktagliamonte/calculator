@@ -1,6 +1,8 @@
 import os
+import sys
 import json
 import logging
+import platform
 from pathlib import Path
 
 # Configure logging
@@ -10,13 +12,27 @@ logger = logging.getLogger(__name__)
 # Current state format version
 STATE_VERSION = 1
 
-def get_state_file_path():
-    home_dir = Path.home()
-    app_dir = home_dir / ".calculator"
+def get_state_file_path():    
+    # Detect operating system
+    system = platform.system()
+    
+    if system == "Windows":
+        # Windows: Use %APPDATA% (C:\Users\{username}\AppData\Roaming)
+        app_dir = Path(os.environ.get('APPDATA', '')) / "Calculator"
+    elif system == "Darwin":  # macOS
+        # macOS: Use ~/Library/Application Support
+        app_dir = Path.home() / "Library" / "Application Support" / "Calculator"
+    else:  # Linux and other Unix-like systems
+        # Linux: Follow XDG Base Directory Specification if possible
+        xdg_config_home = os.environ.get('XDG_CONFIG_HOME')
+        if xdg_config_home:
+            app_dir = Path(xdg_config_home) / "calculator"
+        else:
+            app_dir = Path.home() / ".config" / "calculator"
     
     # Create directory if it doesn't exist
     if not app_dir.exists():
-        app_dir.mkdir(exist_ok=True)
+        app_dir.mkdir(parents=True, exist_ok=True)
         
     return app_dir / "calculator_state.json"
 
@@ -52,6 +68,10 @@ def save_calculator_state(calculator):
                 'stat_mode': calculator.stat_manager.stat_mode,
                 'data_1': calculator.stat_manager.data_1 if hasattr(calculator.stat_manager, 'data_1') else None,
                 'data_2': calculator.stat_manager.data_2 if hasattr(calculator.stat_manager, 'data_2') else None
+            },
+            'modulo': {
+                'modulus': calculator.mod_value,
+                'modulo_active': calculator.mod_mode_active
             }
         }
         
@@ -118,6 +138,11 @@ def load_calculator_state(calculator):
                 calculator.stat_manager.data_1 = state['statistics']['data_1']
             if hasattr(calculator.stat_manager, 'data_2') and 'data_2' in state['statistics']:
                 calculator.stat_manager.data_2 = state['statistics']['data_2']
+                
+        # Apply modulo settings
+        if 'modulo' in state:
+            calculator.mod_value = state['modulo'].get('modulus', calculator.mod_value)
+            calculator.mod_mode_active = state['modulo'].get('modulo_active', calculator.mod_mode_active)
         
         # Update UI to reflect loaded state
         calculator.update_display_with_cursor()
