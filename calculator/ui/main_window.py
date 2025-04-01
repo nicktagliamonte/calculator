@@ -1,4 +1,3 @@
-# calculator/ui/main_window.py
 import re
 from PySide6.QtCore import QTimer # type: ignore
 from PySide6.QtWidgets import QMainWindow, QVBoxLayout, QGridLayout, QWidget, QLabel, QPushButton, QScrollArea, QFrame # type: ignore
@@ -70,8 +69,33 @@ class MainWindow(QMainWindow):
         self.input_scroll_area.setWidget(self.display_input)
 
         # Style the labels
-        self.display_input.setStyleSheet("font-size: 24px;")
-        self.display_result.setStyleSheet("font-size: 20px; color: grey;")
+        self.display_input.setStyleSheet("""
+            background-color: #c8e6c9;
+            color: #033a16;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 24px;
+            padding: 8px;
+            border: 1px inset #555;
+            border-radius: 3px;
+            margin: 10px;
+        """)
+        self.display_result.setStyleSheet("""
+            background-color: #c8e6c9;
+            color: #033a16;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 20px;
+            padding: 8px;
+            border: 1px inset #555;
+            border-radius: 3px;
+            margin: 10px;
+        """)
+
+        self.input_scroll_area.setStyleSheet("""
+            background-color: #c8e6c9;
+            border: none;
+        """)
 
         # Add display labels to layout
         main_layout.addWidget(self.input_scroll_area)
@@ -92,7 +116,14 @@ class MainWindow(QMainWindow):
         # Add status bar at the bottom
         self.status_bar = QLabel()
         self.status_bar.setAlignment(Qt.AlignCenter)
-        self.status_bar.setStyleSheet("font-size: 10px; background-color: #f0f0f0; border-top: 1px solid #ccc; padding: 2px;")
+        self.status_bar.setStyleSheet("""
+            background-color: #202020;
+            color: #a0a0a0;
+            border-top: 1px solid #555;
+            padding: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 10px;
+        """)
         main_layout.addWidget(self.status_bar)
         
         # Update the status bar with initial settings
@@ -100,6 +131,14 @@ class MainWindow(QMainWindow):
 
         # Set the central widget of the window
         central_widget.setLayout(main_layout)
+        central_widget.setStyleSheet("""
+            QWidget {
+                background-color: #303030;
+                border-radius: 8px;
+                border: 2px solid #202020;
+            }
+        """)
+        self.setStyleSheet("background-color: #252525;")
         self.setCentralWidget(central_widget)
         
         self.load_state()  # Load saved state from file
@@ -107,6 +146,13 @@ class MainWindow(QMainWindow):
         self.update_display_with_cursor()
 
     def add_buttons(self, grid_layout):
+        grid_layout.setVerticalSpacing(10)  # Fixed spacing between all rows
+        grid_layout.setHorizontalSpacing(25)  # Fixed spacing between all columns
+        
+        # Set minimum height for secondary label rows
+        for row in range(9):  # 9 rows of buttons
+            grid_layout.setRowMinimumHeight(row * 2, 20)
+            
         self.buttons = [
             # row 1: 2nd/NULL, DRG/"SCI/ENG", DEL/INS
             ("2ND", "", 0, 1),
@@ -120,9 +166,9 @@ class MainWindow(QMainWindow):
             ("° ' \"", "r<>p", 1, 3),
             ("ABS", "", 1, 4),
 
-            # row 3: ln/e^x, "a b/c"/"a b/c <> d/e", data/stat, statvar/exit stat, clear/memclr
+            # row 3: ln/e^x, "a b/c"/"MIX<>IMP", data/stat, statvar/exit stat, clear/memclr
             ("LN", "e^x", 2, 0),
-            ("A B/C", "A B/C <> D/E", 2, 1),
+            ("A B/C", "MIX<>IMP", 2, 1),
             ("DATA", "STAT", 2, 2),
             ("STATVAR", "EXIT STAT", 2, 3),
             ("CLEAR", "MEMCLR", 2, 4),
@@ -149,7 +195,7 @@ class MainWindow(QMainWindow):
             ("-", "", 5, 4),
 
             # row 7: clrvar, 4/NULL, 5/NULL, 6/NULL, +/NULL
-            ("CLRVAR", " ", 6, 0),
+            ("CLRVAR", "", 6, 0),
             ("4", "", 6, 1),
             ("5", "", 6, 2),
             ("6", "", 6, 3),
@@ -168,6 +214,77 @@ class MainWindow(QMainWindow):
             (".", "FIX", 8, 2),
             ("(-)", "ANS", 8, 3),
         ]
+        
+        button_styles = {
+            "numbers": """
+                QPushButton {
+                    background-color: #4a4a4a;
+                    color: white;
+                    border: 2px solid #333333;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #222;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #333333;
+                    border: 2px solid #222222;
+                    border-bottom: 2px solid #222;  /* Pressed appearance */
+                    margin-top: 2px;                /* Button appears to move down */
+                }
+            """,
+            "operations": """
+                QPushButton {
+                    background-color: #386087;
+                    color: white;
+                    border: 2px solid #294c6b;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #1e3c5a;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #294c6b;
+                    border: 2px solid #1e3c5a;
+                    border-bottom: 2px solid #1e3c5a;  /* Pressed appearance */
+                    margin-top: 2px;                   /* Button appears to move down */
+                }
+            """,
+            "special": """
+                QPushButton {
+                    background-color: #8f4e6b;
+                    color: white;
+                    border: 2px solid #7a3a57;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #652c48;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #7a3a57;
+                    border: 2px solid #652c48;
+                    border-bottom: 2px solid #652c48;  /* Pressed appearance */
+                    margin-top: 2px;                   /* Button appears to move down */
+                }
+            """,
+            "equals": """
+                QPushButton {
+                    background-color: #6b5b95;
+                    color: white;
+                    border: 2px solid #534675;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #3d3455;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #534675;
+                    border: 2px solid #3d3455;
+                    border-bottom: 2px solid #3d3455;  /* Pressed appearance */
+                    margin-top: 2px;                   /* Button appears to move down */
+                }
+            """
+        }
 
         # Add the buttons and secondary labels to the grid
         self.button_widgets = {}
@@ -176,6 +293,7 @@ class MainWindow(QMainWindow):
             button = QPushButton(primary)
             button.setText(primary.upper())  # Ensure button text is uppercase
             button.setFocusPolicy(Qt.NoFocus)
+            button.setFixedWidth(90)  # Set fixed width for buttons
             grid_layout.addWidget(button, row * 2 + 1, col)  # Place button in the grid
 
             # Display secondary text above the button (in smaller font)
@@ -309,10 +427,23 @@ class MainWindow(QMainWindow):
             if primary == "=":
                 button.clicked.connect(self.add_equals)
 
-            # Set appropriate font size for buttons and labels
-            button.setStyleSheet("font-size: 12px;")
-            if label_secondary:
-                label_secondary.setStyleSheet("font-size: 10px; color: gray;")
+        # Apply styles based on button type
+        for (primary, secondary, row, col) in self.buttons:
+            button = self.button_widgets[(row, col)][0]
+            
+            if primary in "0123456789":
+                button.setStyleSheet(button_styles["numbers"])
+            elif primary in "+-*/÷^":
+                button.setStyleSheet(button_styles["operations"])
+            elif primary == "=":
+                button.setStyleSheet(button_styles["equals"])
+            else:
+                button.setStyleSheet(button_styles["special"])
+            
+            # Make the secondary labels pop
+            label = self.button_widgets[(row, col)][1]
+            if label:
+                label.setStyleSheet("color: #ddd; font-size: 10px; font-weight: bold;")
                 
     def update_display_with_cursor(self):
         # Get the clean text without any formatting
@@ -388,7 +519,6 @@ class MainWindow(QMainWindow):
             self._toggling_secondary = False
 
     def toggle_secondary_state(self):
-        # When the 2ND button is pressed directly, we don't want to immediately toggle back
         self._toggling_secondary = True
         self.secondary_state = not self.secondary_state
         
@@ -411,9 +541,42 @@ class MainWindow(QMainWindow):
     def invert_2nd_button_color(self):
         button_2nd, _ = self.button_widgets[(0, 1)]
         if self.secondary_state:
-            button_2nd.setStyleSheet("background-color: black; color: white; font-size: 12px;")
+            button_2nd.setStyleSheet("""
+                QPushButton {
+                    background-color: #1a1a1a;
+                    color: #ffffff;
+                    border: 2px solid #000000;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #000000;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #000000;
+                    border: 2px solid #000000;
+                    border-bottom: 2px solid #000000;  /* Pressed appearance */
+                    margin-top: 2px;                   /* Button appears to move down */
+                }
+            """)
         else:
-            button_2nd.setStyleSheet("background-color: white; color: black; font-size: 12px;")
+            # Return to the original "special" button style
+            button_2nd.setStyleSheet("""
+                QPushButton {
+                    background-color: #8f4e6b;
+                    color: white;
+                    border: 2px solid #7a3a57;
+                    border-radius: 5px;
+                    font-weight: bold;
+                    min-height: 40px;
+                    border-bottom: 4px solid #652c48;  /* 3D effect */
+                }
+                QPushButton:pressed {
+                    background-color: #7a3a57;
+                    border: 2px solid #652c48;
+                    border-bottom: 2px solid #652c48;  /* Pressed appearance */
+                    margin-top: 2px;                   /* Button appears to move down */
+                }
+            """)
             
     def keyPressEvent(self, event: QKeyEvent):
         # Check for Ctrl+C to copy output text
@@ -1218,8 +1381,14 @@ class MainWindow(QMainWindow):
         if self.is_in_menu:
             return
         
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         sender = custom_sender or self.sender()
         button_text = sender.text()
@@ -1239,8 +1408,14 @@ class MainWindow(QMainWindow):
     def add_carrot(self, custom_sender=None):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
         
         sender = custom_sender or self.sender()
         button_text = sender.text()
@@ -1256,8 +1431,14 @@ class MainWindow(QMainWindow):
             self.update_input_state(button_text)
             
     def insert_function(self, func_name: str):
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if func_name == "CLEAR":
             self.clear_input()
@@ -1309,8 +1490,14 @@ class MainWindow(QMainWindow):
     def insert_xrt(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.display_input.text().replace("<u>", "").replace("</u>", "") == "0":
             new_text = "AnsX√("
@@ -1328,8 +1515,14 @@ class MainWindow(QMainWindow):
     def add_with_parenthetical(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         sender = self.sender()
         button_text = sender.text().lower() + "("
@@ -1343,8 +1536,14 @@ class MainWindow(QMainWindow):
     def add_log(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "10^("
@@ -1359,8 +1558,14 @@ class MainWindow(QMainWindow):
     def add_ln(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "e^("
@@ -1375,8 +1580,14 @@ class MainWindow(QMainWindow):
     def add_zero(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             # Show confirmation prompt instead of immediate reset
@@ -1411,8 +1622,14 @@ class MainWindow(QMainWindow):
     def add_decimal(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             self.add_fix()
@@ -1428,8 +1645,14 @@ class MainWindow(QMainWindow):
     def add_inverse(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
         if self.secondary_state:
@@ -1452,8 +1675,14 @@ class MainWindow(QMainWindow):
     def add_square(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "√("
@@ -1476,8 +1705,14 @@ class MainWindow(QMainWindow):
     def add_divide(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
                 
         if self.secondary_state:
             if self.k_mode_active:
@@ -1511,8 +1746,14 @@ class MainWindow(QMainWindow):
     def add_mod(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.mod_mode_active:
             self.mod_mode_active = False
@@ -1528,8 +1769,14 @@ class MainWindow(QMainWindow):
     def add_negate(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "Ans"
@@ -1544,8 +1791,14 @@ class MainWindow(QMainWindow):
     def add_power(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "X√("
@@ -1568,8 +1821,14 @@ class MainWindow(QMainWindow):
     def add_open_parenthesis(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = "%"
@@ -1584,8 +1843,14 @@ class MainWindow(QMainWindow):
     def add_close_parenthesis(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             new_text = ","
@@ -1600,43 +1865,59 @@ class MainWindow(QMainWindow):
     def add_prb(self):
         if self.is_in_menu:
             return
+        
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+        
         if self.secondary_state:
-            new_text = "►f↔d"  
+            # Secondary function (f<>d)
+            new_text = "►f↔d"
+            
+            if current_text == "0":
+                # Special case for empty display - use Ans
+                self.display_input.setText("Ans" + new_text)
+                self.current_input = "Ans" + new_text
+                self.cursor_position = len("Ans" + new_text) - 1
+                self.update_display_with_cursor()
+            else:
+                # Regular case - insert at cursor position
+                self.update_input_state(new_text, replace_zero=True)
+            
+            # Turn off 2ND mode after use
+            self.toggle_secondary_state()
+            
         else:
+            # Primary function (PRB menu)
             # Save current input before entering menu
             self.pre_menu_input = self.current_input
             
-            # Use push_menu_state instead of directly setting menu variables
+            # Show PRB menu
             new_text = "nPr nCr ! rand randi"
             self.push_menu_state("prb")
             
             self.display_input.setText(new_text)
             self.cursor_position = 0  # Position at 'n' in nPr
             self.update_display_with_cursor()
-            return
-        
-        if current_text == "0" and new_text == "►f↔d":
-            # Special case for f<>d with empty display - use Ans
-            self.display_input.setText("Ans" + new_text)
-            self.current_input = "Ans" + new_text
-            self.cursor_position = len("Ans" + new_text) - 1
-            self.update_display_with_cursor()
-        else:
-            # Use the helper for both PRB and normal f<>d cases
-            self.update_input_state(new_text, replace_zero=True)
-        
-        if self.secondary_state:
-            self.toggle_secondary_state()
             
     def add_frac_conversion(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
         if self.secondary_state:
@@ -1658,8 +1939,14 @@ class MainWindow(QMainWindow):
             self.toggle_secondary_state()
             
     def add_drg(self):
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
         if self.secondary_state:
             new_text = "flo | sci | eng"
             self.is_in_menu = True
@@ -1676,8 +1963,14 @@ class MainWindow(QMainWindow):
     def add_symbol_menu(self):
         # Save the current input before entering menu mode
         self.pre_menu_input = self.current_input
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
         
         if self.secondary_state:
             new_text = "R►Pr R►Pθ P►Rx P►Ry"
@@ -1742,9 +2035,8 @@ class MainWindow(QMainWindow):
         else:
             # Only activate if we're in stat mode
             if not self.stat_manager.in_stat_mode:
-                self.display_input.setText("STAT ERROR")
-                self.cursor_position = len("STAT ERROR") - 1
-                QTimer.singleShot(1500, lambda: self.display_input.setText("0"))
+                self.display_result.setText("STAT ERROR: NOT IN STAT MODE")
+                QTimer.singleShot(1500, lambda: self.display_result.setText(""))
                 self.update_display_with_cursor()
                 return
                 
@@ -1777,9 +2069,8 @@ class MainWindow(QMainWindow):
                 self.cursor_position = 0
                 self.update_display_with_cursor()
             else: # Not in stat mode
-                self.display_input.setText("STAT ERROR")
-                self.cursor_position = len("STAT ERROR") - 1
-                self.update_display_with_cursor()
+                self.display_result.setText("STAT ERROR: NOT IN STAT MODE")
+                QTimer.singleShot(1500, lambda: self.display_result.setText(""))
         else:
             # Show statistical variables menu (if in stat mode)
             if self.stat_manager.in_stat_mode:
@@ -1805,8 +2096,14 @@ class MainWindow(QMainWindow):
     def add_pi(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         if self.secondary_state:
             self.is_in_hyp = not self.is_in_hyp
@@ -1857,8 +2154,14 @@ class MainWindow(QMainWindow):
     def add_abs(self):
         if self.is_in_menu:
             return
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
             
         self.update_input_state("abs(")
         
@@ -1880,6 +2183,7 @@ class MainWindow(QMainWindow):
         manual_window.exec()
             
     def add_equals(self):
+        print(f"ans as seen at the TOP of add_equals: {self.ans}")
         # Handle STATVAR menu first (because it overrides other behavior)
         if self.statvar_menu.active:
             result_value = self.display_result.text()
@@ -2295,6 +2599,7 @@ class MainWindow(QMainWindow):
 
         # Update ans with the new result
         self.ans = result_obj['value']
+        print(f"ans as seen AFTER all equals processing: {self.ans}")
 
         if current_text != "0" and not self.is_in_menu:
             # Don't add duplicate entries in a row
@@ -2338,8 +2643,14 @@ class MainWindow(QMainWindow):
         self.status_bar.setText(status_text)
         
     def update_input_state(self, new_text, replace_zero=True):
+        was_in_secondary = self.secondary_state
+        
         if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
             self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
         
         current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
         
@@ -2366,7 +2677,7 @@ class MainWindow(QMainWindow):
         # Update both states
         self.current_input = result
         self.display_input.setText(result)
-        
+        self.cursor_position = len(result) - 1
         self.update_display_with_cursor()
                 
     def update_stat_field(self, text_value):

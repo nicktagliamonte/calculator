@@ -16,10 +16,18 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
             store_to_memory = store_match.group(1)
             # Remove the ►letter part for evaluation
             expression = expression[:store_match.start()]
+        
+        # CHANGE ORDER: First replace "ans" with the value of ans
+        print(f"Ans: {ans}")
+        print(f"Expression before replacing Ans: {expression}")
+        expression = expression.replace("Ans", ans)
+        print(f"Expression after replacing Ans: {expression}")
+        print(f"Ans: {ans}")
             
-       # Check for conversion operators and fraction types
-        convert_to_fraction = "►f↔d" in expression
-        convert_fraction_format = "►A B/C↔D/E" in expression
+        # THEN check for conversion operators and fraction types
+        # Support both Unicode and ASCII versions of the symbol
+        convert_to_fraction = "►f↔d" in expression or ">f<>d" in expression
+        convert_fraction_format = "►A B/C↔D/E" in expression or ">A B/C<>D/E" in expression
         has_mixed_fraction = "┘" in expression
         has_simple_fraction = bool(re.search(r'^\d+/\d+$|[^\d\/]\d+/\d+', expression.replace("┘", "")))
         
@@ -29,9 +37,6 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
         
         # First normalize division symbols for consistent processing
         expression = expression.replace("÷", "/")
-        
-        # Replace "ans" with the value of ans
-        expression = expression.replace("Ans", ans)
         
         # Check for ►DMS conversion
         convert_to_dms = "►DMS" in expression
@@ -46,7 +51,8 @@ def evaluate_expression(expression: str, angle_mode: str = "rad", output_format:
             processed_expr = expression
             
         # Remove conversion operators before processing
-        processed_expr = processed_expr.replace("►f↔d", "").replace("►A B/C↔D/E", "")
+        processed_expr = processed_expr.replace("►f↔d", "").replace(">f<>d", "")
+        processed_expr = processed_expr.replace("►A B/C↔D/E", "").replace(">A B/C<>D/E", "")
         
         # Process the expression as before
         processed_expr = process_expression(processed_expr, angle_mode)

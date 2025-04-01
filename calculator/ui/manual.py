@@ -145,7 +145,7 @@ class ManualWindow(QDialog):
 ### Fractions
 - A B/C enters a character which allows the calculator to parse user-entered fractions
     - i.e. 3 > A B/C > 1 > / > 2 is parsed as 3.5
-- A B/C <> D/E converts between different fraction formats (improper, mixed, and float)
+- MIX<>IMP converts between different fraction formats (improper, mixed, and float)
 
 ### Trigonometry
 - SIN, COS, TAN calculate trigonometric functions
