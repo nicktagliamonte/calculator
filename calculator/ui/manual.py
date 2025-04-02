@@ -34,7 +34,17 @@ class ManualWindow(QDialog):
         self.load_manual()
         
     def load_manual(self):
-        """Load the manual content formatted in Markdown and convert to HTML"""
+        self.text_browser.setStyleSheet("""
+            QTextBrowser {
+                background-color: #303030;
+                color: #e0e0e0;
+                border: 1px solid #555;
+            }
+            QScrollBar {
+                background-color: #404040;
+            }
+        """)
+        
         manual_md = """
 # TI-30X IIS Calculator Manual
 
@@ -75,14 +85,14 @@ class ManualWindow(QDialog):
 
 ### Numbers and Arithmetic
 - Enter numbers using the number keys (0-9)
-- Use arithmetic operators (+, -, *, ÷) for calculations
-    - note that '/' stands in for ÷ when inputting from keyboard
+- Use arithmetic operators (+, -, *, ÷) for calculations  
+- note that '/' stands in for ÷ when inputting from keyboard
 - Press = to compute the result
 - The (-) button is used to denote negative values. (-) can also be entered via keyboard. Excluding the parentheses will result in an improperly parsed expression, as the '-' character will be read as strict subtraction
 
 ### Memory Functions
 - STO> stores a value in memory (a, b, c, d, e, r)
-    - r is used as a seed for the random functions and is not accessed by RCL
+- r is used as a seed for the random functions and is not accessed by RCL
 - RCL recalls a stored value
 
 ### Special Functions
@@ -97,9 +107,9 @@ class ManualWindow(QDialog):
 
 ### Number Theoretic Functions
 - MOD access the modulus menu  
-    - With the modulus set to some integer, all calculations will be done modulo that integer
-    - The result is always a member of the least positive residue class
-    - The current modulus is shown in the status bar
+- With the modulus set to some integer, all calculations will be done modulo that integer
+- The result is always a member of the least positive residue class
+- The current modulus is shown in the status bar
 
 ### Angle Modes
 - DRG cycles between Degree, Radian, and Gradian modes
@@ -114,12 +124,12 @@ class ManualWindow(QDialog):
 
 ### Data Entry
 - DATA enters the statistical data entry mode
-    - Only numeric values are accepted, non-numeric input will cause an error
-    - Expressions must be evaluated before entering. You cannot add "2*2" to the data set, you must first evaluate it to "4"
+- Only numeric values are accepted, non-numeric input will cause an error
+- Expressions must be evaluated before entering. You cannot add "2*2" to the data set, you must first evaluate it to "4"
 - STAT selects between 1-var and 2-var statistical modes
 - STATVAR accesses statistical variables and calculations
 - EXIT STAT exits stat mode
-    - Note that you must be in stat mode to access DATA or STATVAR menus
+- Note that you must be in stat mode to access DATA or STATVAR menus
 
 ### Variables
 - x̄: Mean of x values
@@ -144,14 +154,14 @@ class ManualWindow(QDialog):
 
 ### Fractions
 - A B/C enters a character which allows the calculator to parse user-entered fractions
-    - i.e. 3 > A B/C > 1 > / > 2 is parsed as 3.5
+- i.e. 3 > A B/C > 1 > / > 2 is parsed as 3.5
 - MIX<>IMP converts between different fraction formats (improper, mixed, and float)
 
 ### Trigonometry
 - SIN, COS, TAN calculate trigonometric functions
 - SIN⁻¹, COS⁻¹, TAN⁻¹ calculate inverse trigonometric functions
 - HYP enables hyperbolic functions
-    - Use HYP to set hyperbolic mode, then the calculator will parse sin( as sinh(, etc.
+- Use HYP to set hyperbolic mode, then the calculator will parse sin( as sinh(, etc.
 
 ### Logarithms and Powers
 - LOG calculates base-10 logarithm
@@ -195,8 +205,9 @@ class ManualWindow(QDialog):
         self.text_browser.setHtml(html_content)
     
     def markdown_to_html(self, markdown):
-        html = "<html><body style='font-family: Arial, sans-serif;'>"
-    
+        # Change the body style to have light text on dark background
+        html = "<html><body style='font-family: Arial, sans-serif; color: #e0e0e0; background-color: #303030;'>"
+        
         # Process line by line
         lines = markdown.split('\n')
         in_list = False
@@ -209,11 +220,11 @@ class ManualWindow(QDialog):
             # Check for table start
             if line.strip().startswith('|') and not in_table:
                 in_table = True
-                html += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse;'>"
+                html += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; border-color: #555;'>"
                 
                 # Process header row
                 header_cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
-                html += "<tr style='background-color: #f1f1f1;'>"
+                html += "<tr style='background-color: #444;'>"
                 for cell in header_cells:
                     html += f"<th>{cell}</th>"
                 html += "</tr>"
@@ -227,11 +238,11 @@ class ManualWindow(QDialog):
                     row_number += 1
                     data_cells = [cell.strip() for cell in lines[i].strip().strip('|').split('|')]
                     
-                    # Apply alternating row colors
+                    # Apply alternating row colors - darker shades for dark theme
                     if row_number % 2 == 0:  # Even rows
-                        html += "<tr style='background-color: #f2f2f2;'>"
+                        html += "<tr style='background-color: #3a3a3a;'>"
                     else:  # Odd rows
-                        html += "<tr>"
+                        html += "<tr style='background-color: #333;'>"
                         
                     for cell in data_cells:
                         html += f"<td>{cell}</td>"
