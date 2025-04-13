@@ -6,12 +6,17 @@ from PySide6.QtGui import QKeyEvent, QGuiApplication # type: ignore
 from logic.stat import StatisticsManager
 from logic.statvar_menu import StatVarMenuManager
 from .manual import ManualWindow
+from logic.num import NumberTheoryManager
+from logic.numvar_menu import NumVarMenuManager
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.stat_manager = StatisticsManager()
         self.statvar_menu = StatVarMenuManager()
+        
+        self.num_manager = NumberTheoryManager()
+        self.numvar_menu = NumVarMenuManager()
         
         self.key_buffer = ""
         self.cursor_position = 0
@@ -208,11 +213,12 @@ class MainWindow(QMainWindow):
             ("3", "", 7, 3),
             ("=", "", 7, 4),
 
-            # row 9: 0/reset, ./fix, (-)/ans
+            # row 9: 0/reset, ./fix, (-)/ans, num/numvar
             ("MENU", "", 8, 0),
             ("0", "RESET", 8, 1),
             (".", "FIX", 8, 2),
             ("(-)", "ANS", 8, 3),
+            ("NUM", "NUMVAR", 8, 4)
         ]
         
         button_styles = {
@@ -426,6 +432,10 @@ class MainWindow(QMainWindow):
             # Connect the = button
             if primary == "=":
                 button.clicked.connect(self.add_equals)
+                
+            # Connect the "NUM" button
+            if primary == "NUM":
+                button.clicked.connect(self.add_num)
 
         # Apply styles based on button type
         for (primary, secondary, row, col) in self.buttons:
@@ -631,6 +641,40 @@ class MainWindow(QMainWindow):
                 self.display_result.setText(str(result))
                 self.update_display_with_cursor()
                 return
+        if self.numvar_menu.active:
+            # Check for Enter/Return FIRST (before left/right keys)
+            if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
+                result_value = self.display_result.text()
+                
+                # Deactivate the menu
+                self.numvar_menu.active = False
+                self.numvar_menu.deactivate()
+                
+                # Copy the result to the input line
+                self.display_input.setText(result_value)
+                self.current_input = result_value
+                
+                # Position cursor at the end
+                self.cursor_position = len(result_value) - 1
+                self.update_display_with_cursor()
+                return
+                
+            # Then check for left/right navigation
+            if event.key() == Qt.Key_Left:
+                menu_text, result = self.numvar_menu.navigate('left')
+                self.display_input.setText(menu_text)
+                self.cursor_position = self.numvar_menu.cursor_pos
+                self.display_result.setText(str(result))
+                self.update_display_with_cursor()
+                return
+                    
+            if event.key() == Qt.Key_Right:
+                menu_text, result = self.numvar_menu.navigate('right')
+                self.display_input.setText(menu_text)
+                self.cursor_position = self.numvar_menu.cursor_pos
+                self.display_result.setText(str(result))
+                self.update_display_with_cursor()
+                return
         
         # Now process function key buffers BEFORE handling menu-specific inputs
         # This allows typing "sin", "log", etc. even in the K menu
@@ -650,7 +694,7 @@ class MainWindow(QMainWindow):
                 "fix": "FIX", "menu": "MENU", "abs": "ABS", # Other functions
                 "deg": "deg", "rad": "rad", "grd": "grd", # Angle modes
                 "ins": "INS",  # Insert mode
-                "mod": "MOD"  # Modulus function
+                "mod": "MOD", "num": "NUM"  # number theoretic options
             }
 
             # Check if buffer matches a valid function
@@ -800,7 +844,7 @@ class MainWindow(QMainWindow):
                 self.update_mod_field(value_part)
                 return
     
-        # Check STATVAR menu first - before any other menu checks
+        # Check STATVAR menu 
         if self.statvar_menu.active:
             # Check for Enter/Return FIRST (before left/right keys)
             if event.key() == Qt.Key_Return or event.key() == Qt.Key_Enter:
@@ -912,6 +956,94 @@ class MainWindow(QMainWindow):
                         self.current_input = next_prompt
                         self.cursor_position = len(next_prompt) - 1
                         self.update_display_with_cursor()
+                return
+        
+        if self.num_manager.in_data_entry:
+            # Check for numeric input
+            if event.key() in [Qt.Key_0, Qt.Key_1, Qt.Key_2, Qt.Key_3, Qt.Key_4, 
+                            Qt.Key_5, Qt.Key_6, Qt.Key_7, Qt.Key_8, Qt.Key_9,
+                            Qt.Key_Period]:
+                
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                    
+                # Add the new digit
+                value_part += event.text()
+                
+                # Update the value in real-time
+                self.update_num_field(value_part)
+                return
+                
+            elif event.key() == Qt.Key_Backspace:
+                current_text = self.display_input.text()
+                value_part = ""
+                
+                # Extract value part after the = sign
+                if "=" in current_text:
+                    clean_text = current_text.replace("<u>", "").replace("</u>", "")
+                    prefix, value_part = clean_text.split("=", 1)
+                    
+                    # Don't delete the field name or equals sign
+                    if self.cursor_position <= len(prefix):
+                        return
+                
+                # Modified backspace behavior
+                if len(value_part) == 1:
+                    # Only one character, delete it
+                    value_part = ""
+                elif value_part:
+                    # More than one character, delete last one
+                    value_part = value_part[:-1]
+                
+                # Update the value in real-time
+                self.update_num_field(value_part)
+                return
+            
+            elif event.key() == Qt.Key_Up:
+                # Check for up navigation
+                success, prompt = self.num_manager.navigate_up()
+                if success:
+                    self.display_input.setText(prompt)
+                    self.current_input = prompt
+                    self.cursor_position = len(prompt) - 1
+                    self.update_display_with_cursor()
+                return
+            elif event.key() == Qt.Key_Down:
+                # Check for down navigation
+                success, prompt = self.num_manager.navigate_down()
+                if success:
+                    self.display_input.setText(prompt)
+                    self.current_input = prompt
+                    self.cursor_position = len(prompt) - 1
+                    self.update_display_with_cursor()
+                return
+            elif event.key() == Qt.Key_Return:
+                current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+                
+                if '=' in current_text:
+                    field, value = current_text.split('=', 1)
+                    
+                    # Validate the entered value
+                    success, error_message = self.num_manager.update_current_value(value)
+                    
+                    if not success:
+                        # Show error message in result display
+                        self.display_result.setText(f"Error: {error_message}")
+                        return
+                    
+                    # If valid, move to next field
+                    success, prompt = self.num_manager.navigate_down()
+                    if success:
+                        self.display_input.setText(prompt)
+                        self.cursor_position = len(prompt)
+                        self.display_result.setText("")  # Clear error messages
+                
+                self.update_display_with_cursor()
                 return
         
         # Handle menu-specific navigation
@@ -1085,7 +1217,7 @@ class MainWindow(QMainWindow):
                 self.update_display_with_cursor()
                 return
         
-        if not self.is_in_menu and not self.stat_manager.in_data_entry:
+        if not self.is_in_menu and not (self.stat_manager.in_data_entry or self.num_manager.in_data_entry):
             if event.key() == Qt.Key_Up:
                 # Navigate backward in history
                 if self.session_memory:
@@ -1336,6 +1468,30 @@ class MainWindow(QMainWindow):
             
             self.update_display_with_cursor()
             return
+        
+        if self.is_in_menu and self.menu_type == "num":
+            if self.num_manager.in_data_entry:
+                current_text = self.display_input.text().replace("<u>", "").replace("</u>", "")
+                
+                # If there's a value after =, clear just that value
+                if '=' in current_text and current_text.split('=', 1)[1].strip():
+                    field = current_text.split('=', 1)[0]
+                    self.num_manager.clear_current_field()
+                    self.display_input.setText(f"{field}=")
+                    self.cursor_position = len(f"{field}=")
+                    self.update_display_with_cursor()
+                    return
+                # Otherwise exit number theory mode
+                else:
+                    self.is_in_menu = False
+                    self.menu_type = None
+                    self.num_manager.in_data_entry = False
+                    self.display_input.setText("0")
+                    self.current_input = "0" 
+                    self.cursor_position = 0
+                    self.update_display_with_cursor()
+                    return
+            return
     
         if self.is_in_menu:
             self.is_in_menu = False
@@ -1348,15 +1504,24 @@ class MainWindow(QMainWindow):
         # Special handling for stat data entry mode
         if self.stat_manager.in_data_entry:
             current_text = self.display_input.text()
-            if "=" in current_text:
-                # Keep the prompt part but clear the value
-                prefix = current_text.split("=")[0] + "="
-                self.display_input.setText(prefix)
-                self.current_input = prefix
-                self.cursor_position = len(prefix) - 1
-                
+        
+            # If there's a value after =, clear just that value
+            if '=' in current_text and current_text.split('=', 1)[1].strip():
+                field = current_text.split('=', 1)[0]
+                self.display_input.setText(f"{field}=")
+                self.cursor_position = len(f"{field}=")
                 self.update_display_with_cursor()
-            return
+                return
+            # Otherwise exit stat data entry mode
+            else:
+                self.is_in_menu = False
+                self.menu_type = None
+                self.stat_manager.in_data_entry = False
+                self.display_input.setText("0")
+                self.current_input = "0" 
+                self.cursor_position = 0
+                self.update_display_with_cursor()
+                return
         
         # Normal clear behavior for non-stat modes
         self.history_index = -1
@@ -1468,6 +1633,10 @@ class MainWindow(QMainWindow):
         
         if func_name == "MOD":
             self.add_mod()
+            return
+        
+        if func_name == "NUM":
+            self.add_num()
             return
             
         if func_name == "deg":
@@ -2181,9 +2350,67 @@ class MainWindow(QMainWindow):
     def add_menu(self):
         manual_window = ManualWindow(self)
         manual_window.exec()
+    
+    def add_num(self):
+        if self.is_in_menu and self.menu_type != "num":
+            return
+        was_in_secondary = self.secondary_state
+        
+        if self.display_result.text() != "":
+            if self.secondary_state:
+                self.toggle_secondary_state()
+            self.clear_input()
+            if was_in_secondary and not self.secondary_state:
+                self.toggle_secondary_state()
+        
+        if self.secondary_state:
+            if self.numvar_menu.active:
+                # Menu already active, just update display
+                menu_text, result = self.numvar_menu.navigate('right')
+            else:
+                # Activate the menu
+                menu_text, result = self.numvar_menu.activate(self.num_manager)
+                
+            if menu_text:
+                self.display_input.setText(menu_text)
+                self.cursor_position = self.numvar_menu.cursor_pos
+                self.display_result.setText(str(result))
+                self.update_display_with_cursor()
+                
+            self.toggle_secondary_state()
+            return
+        else:
+            # Primary NUM functionality
+            if not hasattr(self, 'num_manager'):
+                # Initialize num_manager if it doesn't exist yet
+                from logic.num import NumberTheoryManager
+                self.num_manager = NumberTheoryManager()
+            
+            # Toggle number theory entry mode
+            if hasattr(self.num_manager, 'in_data_entry') and self.num_manager.in_data_entry:
+                # Exit number entry mode
+                self.num_manager.in_data_entry = False
+                self.is_in_menu = False  # Exit menu mode
+                self.menu_type = None
+                self.display_input.setText("0")
+                self.current_input = "0"
+                self.cursor_position = 0
+            else:
+                # Start number theory data entry
+                # Use the mod_value if it exists as default modulus
+                success, prompt = self.num_manager.start_data_entry(default_mod=self.mod_value if self.mod_mode_active else None)
+                if success:
+                    self.is_in_menu = True  # Set menu mode flag
+                    self.menu_type = "num"   # Set menu type to num
+                    self.pre_menu_input = self.current_input  # Save current input
+                    self.display_input.setText(prompt)
+                    self.cursor_position = len(prompt)
+                    # Clear the result display for data entry
+                    self.display_result.setText("")
+            
+            self.update_display_with_cursor()
             
     def add_equals(self):
-        print(f"ans as seen at the TOP of add_equals: {self.ans}")
         # Handle STATVAR menu first (because it overrides other behavior)
         if self.statvar_menu.active:
             result_value = self.display_result.text()
@@ -2378,6 +2605,9 @@ class MainWindow(QMainWindow):
                     self.stat_manager.current_freq = 1
                     self.stat_manager.viewing_freq = False
                     self.stat_manager.viewing_y = False
+                    
+                    # Clear number theory data
+                    self.num_manager.clear_all_data()
                     
                     # Update display to confirm reset
                     self.display_result.setText("RESET COMPLETE")
@@ -2696,6 +2926,23 @@ class MainWindow(QMainWindow):
             
             self.cursor_position = len(self.current_input) - 1
             self.update_display_with_cursor()
+    
+    def update_num_field(self, text_value):
+        current_text = self.display_input.text()
+        if "=" in current_text:
+            prefix = current_text.split("=")[0] + "="
+            
+            # Update the display
+            self.display_input.setText(prefix + text_value)
+            self.current_input = prefix + text_value
+            
+            # Strip HTML tags from the value
+            clean_value = text_value.replace("<u>", "").replace("</u>", "")
+            self.num_manager.current_value = clean_value
+            success = self.num_manager.update_current_value(clean_value)
+            
+            self.cursor_position = len(self.current_input) - 1
+            self.update_display_with_cursor()
             
     def process_stat_function(self, function_name, value):
         if not value:
@@ -2801,16 +3048,36 @@ class MainWindow(QMainWindow):
         viewport_width = self.input_scroll_area.viewport().width()
         current_scroll_pos = scrollbar.value()
         
-        # Ensure cursor is visible - calculate required scroll position
-        margin = 20  # Pixel margin from edge
+        # Calculate average character width to determine extra scroll space
+        avg_char_width = metrics.horizontalAdvance("X")  # Use X as a reference character
+        extra_context = avg_char_width * 4  # Show approximately 7 more characters
         
-        # If cursor is to the right of visible area
-        if cursor_pixel_pos > current_scroll_pos + viewport_width - margin:
-            scrollbar.setValue(cursor_pixel_pos - viewport_width + margin)
+        # Determine if cursor is at an edge and needs centering
+        is_at_edge = (cursor_pixel_pos > current_scroll_pos + viewport_width - 60 or 
+                    cursor_pixel_pos < current_scroll_pos + 60)
         
-        # If cursor is to the left of visible area
-        elif cursor_pixel_pos < current_scroll_pos + margin:
-            scrollbar.setValue(max(0, cursor_pixel_pos - margin))
+        if is_at_edge:
+            # When moving to a non-visible area, center the cursor with extra context
+            ideal_scroll = max(0, cursor_pixel_pos - (viewport_width / 2))
+            
+            # Adjust to show more content in the direction we're scrolling
+            if cursor_pixel_pos > current_scroll_pos + viewport_width - 60:  # Moving right
+                ideal_scroll += extra_context
+            elif cursor_pixel_pos < current_scroll_pos + 60:  # Moving left
+                ideal_scroll = max(0, ideal_scroll - extra_context)
+                
+            scrollbar.setValue(int(ideal_scroll))
+        else:
+            # Standard margin for small movements within visible area
+            margin = 30  # Slightly larger margin than before
+            
+            # If cursor is to the right of visible area
+            if cursor_pixel_pos > current_scroll_pos + viewport_width - margin:
+                scrollbar.setValue(cursor_pixel_pos - viewport_width + margin + extra_context)
+            
+            # If cursor is to the left of visible area
+            elif cursor_pixel_pos < current_scroll_pos + margin:
+                scrollbar.setValue(max(0, cursor_pixel_pos - margin - extra_context))
             
     def save_state(self):
         from logic.state_manager import save_calculator_state

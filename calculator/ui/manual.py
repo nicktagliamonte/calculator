@@ -1,5 +1,8 @@
 from PySide6.QtWidgets import QDialog, QVBoxLayout, QTextBrowser, QPushButton, QScrollArea # type: ignore
 from PySide6.QtCore import Qt # type: ignore
+import markdown # type: ignore
+from markdown.extensions import Extension # type: ignore
+from markdown.extensions.tables import TableExtension # type: ignore
 
 class ManualWindow(QDialog):
     def __init__(self, parent=None):
@@ -22,6 +25,21 @@ class ManualWindow(QDialog):
         
         # Add close button
         close_button = QPushButton("Close")
+        close_button.setStyleSheet("""
+            QPushButton {
+                color: #e0e0e0;
+                background-color: #404040;
+                border: 1px solid #555;
+                padding: 6px;
+                border-radius: 3px;
+            }
+            QPushButton:hover {
+                background-color: #505050;
+            }
+            QPushButton:pressed {
+                background-color: #606060;
+            }
+        """)
         close_button.clicked.connect(self.accept)
         
         # Add widgets to layout
@@ -82,6 +100,7 @@ class ManualWindow(QDialog):
 | grd            | set gradian                   | Angle Mode |
 | ins            | set ins mode                  | Edit Mode |
 | mod            | Enter the modulus menu        | Modulus Mode |
+| num            | Enter the number theory menu  | Number Theory |
 
 ### Numbers and Arithmetic
 - Enter numbers using the number keys (0-9)
@@ -110,6 +129,36 @@ class ManualWindow(QDialog):
 - With the modulus set to some integer, all calculations will be done modulo that integer
 - The result is always a member of the least positive residue class
 - The current modulus is shown in the status bar
+- NUM accesses the data entry menu for number theoretic functions
+- There are prompts for n, m, and a where m and a are optional
+- n is the number to be analyzed, m is the modulus, and a is the base for the logarithm
+- The calculator will calculate the following functions:
+
+| Function | Description |
+| -------- | ----------- |
+| Fac      | Prime Factors formatted as "p1^e1 * p2^e2 * ..." |
+| τ(n)     | Number of divisors |
+| σ(n)     | Sum of divisors |
+| μ(n)     | Möbius function (returns 0 if n is divisible by a square, otherwise ±1) |
+| rad      | Radical of n (product of distinct prime factors) |
+| φ(n)     | Euler's totient function (counts integers ≤ n coprime to n) |
+| λ(n)     | Carmichael function (gives exponent of multiplicative group mod n) |
+| Prm      | Primality test (returns "Prime" if prime, "Composite" if composite) |
+| GCD      | Greatest common divisor |
+| LCM      | Least common multiple |
+| Bzt      | Bezout coefficients (output formatted as n⋅x + m⋅y = gcd) |
+| Inv      | Modular inverse (x such that n⋅x ≡ 1 mod m) |
+| Ord      | Order of n mod m (smallest k such that n^k ≡ 1 mod m) |
+| Gen      | Generator check (returns "Yes" if n generates (ℤ/mℤ)*, "No" otherwise) |
+| QR       | Quadratic residues mod m (shows list of all values) |
+| Leg      | Legendre symbol (n/m) (1 if n is a quadratic residue mod m, -1 if not, 0 if m divides n) |
+| Jac      | Jacobi symbol (n/m) (generalizes Legendre to any odd modulus) |
+| DLog     | Discrete logarithm (returns x such that n^x ≡ a mod m) |
+| Per      | Pisano period (length of the Fibonacci sequence mod m) |
+| Knd      | Knödel check (returns "Yes" if a^(n-1) ≡ 1 mod n for all a coprime to n) |
+| CbC      | Cubic classes (count of equivalence classes of binary cubic forms mod m) |
+
+- Scroll through results using the arrow keys, and press enter to select the result of a function
 
 ### Angle Modes
 - DRG cycles between Degree, Radian, and Gradian modes
@@ -198,91 +247,51 @@ class ManualWindow(QDialog):
 - Use parentheses for complex expressions
 - Use Ctrl + C to copy text from the display
 - Replace individual characters on the input line by setting the cursor to the desired location and entering the new character
+- When inputting data for number theory, use the up and down arrow keys to scroll. Use num to exit data entry. You don't have to press enter to save values.
 """
         
         # Convert Markdown to HTML (simple conversion for basic formatting)
         html_content = self.markdown_to_html(manual_md)
         self.text_browser.setHtml(html_content)
     
-    def markdown_to_html(self, markdown):
-        # Change the body style to have light text on dark background
-        html = "<html><body style='font-family: Arial, sans-serif; color: #e0e0e0; background-color: #303030;'>"
+    def markdown_to_html(self, markdown_text):
+        """Convert markdown to HTML with proper table support"""
+        # Configure CSS for dark theme
+        css = """
+        <style>
+            body { background-color: #333; color: #fff; font-family: Arial, sans-serif; }
+            h1, h2, h3 { color: #9cc; }
+            code { background-color: #444; padding: 2px 4px; border-radius: 3px; }
+            pre { background-color: #444; padding: 10px; border-radius: 5px; overflow: auto; }
+            a { color: #9cf; }
+            table { border-collapse: collapse; width: 100%; margin: 15px 0; }
+            th { background-color: #444; padding: 8px; text-align: left; }
+            td { padding: 8px; border: 1px solid #555; }
+            tr:nth-child(even) { background-color: #3a3a3a; }
+            tr:nth-child(odd) { background-color: #333; }
+        </style>
+        """
         
-        # Process line by line
-        lines = markdown.split('\n')
-        in_list = False
-        in_table = False
+        # Convert markdown to HTML with table extension
+        html = markdown.markdown(
+            markdown_text,
+            extensions=[
+                'tables',        # Enable table support
+                'fenced_code',   # For code blocks
+                'codehilite',    # For syntax highlighting
+                'nl2br'          # Convert newlines to <br>
+            ]
+        )
         
-        i = 0
-        while i < len(lines):
-            line = lines[i]
-            
-            # Check for table start
-            if line.strip().startswith('|') and not in_table:
-                in_table = True
-                html += "<table border='1' cellpadding='5' cellspacing='0' style='border-collapse: collapse; border-color: #555;'>"
-                
-                # Process header row
-                header_cells = [cell.strip() for cell in line.strip().strip('|').split('|')]
-                html += "<tr style='background-color: #444;'>"
-                for cell in header_cells:
-                    html += f"<th>{cell}</th>"
-                html += "</tr>"
-                
-                # Skip the separator row (next line)
-                i += 2  # Skip to the first data row
-                
-                # Process data rows with alternating colors
-                row_number = 0
-                while i < len(lines) and lines[i].strip().startswith('|'):
-                    row_number += 1
-                    data_cells = [cell.strip() for cell in lines[i].strip().strip('|').split('|')]
-                    
-                    # Apply alternating row colors - darker shades for dark theme
-                    if row_number % 2 == 0:  # Even rows
-                        html += "<tr style='background-color: #3a3a3a;'>"
-                    else:  # Odd rows
-                        html += "<tr style='background-color: #333;'>"
-                        
-                    for cell in data_cells:
-                        html += f"<td>{cell}</td>"
-                    html += "</tr>"
-                    i += 1
-                
-                html += "</table>"
-                continue
-            
-            # Headers
-            if line.startswith('# '):
-                html += f"<h1>{line[2:]}</h1>"
-            elif line.startswith('## '):
-                html += f"<h2>{line[3:]}</h2>"
-            elif line.startswith('### '):
-                html += f"<h3>{line[4:]}</h3>"
-            # List items
-            elif line.startswith('- '):
-                if not in_list:
-                    html += "<ul>"
-                    in_list = True
-                html += f"<li>{line[2:]}</li>"
-            # Regular text
-            elif line.strip() == '':
-                if in_list:
-                    html += "</ul>"
-                    in_list = False
-                html += "<p></p>"
-            else:
-                if in_list:
-                    html += "</ul>"
-                    in_list = False
-                html += f"<p>{line}</p>"
-            
-            i += 1
-        
-        if in_list:
-            html += "</ul>"
-        if in_table:
-            html += "</table>"
-        
-        html += "</body></html>"
-        return html
+        # Wrap with HTML structure and CSS
+        return f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            {css}
+        </head>
+        <body>
+            {html}
+        </body>
+        </html>
+        """

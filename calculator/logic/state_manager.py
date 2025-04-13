@@ -72,6 +72,11 @@ def save_calculator_state(calculator):
             'modulo': {
                 'modulus': calculator.mod_value,
                 'modulo_active': calculator.mod_mode_active
+            },
+            'number_theory': {
+                'n_value': calculator.num_manager.n_value if hasattr(calculator, 'num_manager') else None,
+                'm_value': calculator.num_manager.m_value if hasattr(calculator, 'num_manager') else None,
+                'a_value': calculator.num_manager.a_value if hasattr(calculator, 'num_manager') else None
             }
         }
         
@@ -143,6 +148,13 @@ def load_calculator_state(calculator):
         if 'modulo' in state:
             calculator.mod_value = state['modulo'].get('modulus', calculator.mod_value)
             calculator.mod_mode_active = state['modulo'].get('modulo_active', calculator.mod_mode_active)
+            
+        # Apply number theory settings
+        if 'number_theory' in state:
+            if hasattr(calculator, 'num_manager'):
+                calculator.num_manager.n_value = state['number_theory'].get('n_value', None)
+                calculator.num_manager.m_value = state['number_theory'].get('m_value', None)
+                calculator.num_manager.a_value = state['number_theory'].get('a_value', None)
         
         # Update UI to reflect loaded state
         calculator.update_display_with_cursor()
