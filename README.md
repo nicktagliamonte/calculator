@@ -5,7 +5,7 @@ Overview
 --------
 
 A feature-rich scientific calculator inspired by the TI-30X IIS, reimagined with a modern dark interface and enhanced functionality. This first release includes a pre-built binary for Linux users.  
-![Alt text](https://github.com/nicktagliamonte/calculator/blob/main/calculator/images/demo.png))
+![Alt text](https://github.com/nicktagliamonte/calculator/blob/main/calculator/images/demo.png)
 
 Download
 --------
